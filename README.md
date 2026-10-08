@@ -1,10 +1,3 @@
-Berikut adalah draf berkas **`README.md`** standar dan profesional yang telah disesuaikan dengan arsitektur, alur kerja, skema database, serta pembagian tugas tim proyek **CamRent**.
-
----
-
-### File: `README.md`
-
-```markdown
 # 📷 CamRent - Web Application for Camera Rental Service
 
 **CamRent** adalah platform penyewaan kamera berbasis web yang dibangun dengan framework **Laravel 13** di sisi backend dan **Blade / Vue / React / HTML-JS** di sisi frontend. Sistem ini dilengkapi dengan otentikasi API berbasis **Sanctum**, integrasi payment gateway **Midtrans Snap**, notifikasi *in-app*, serta sistem *monitoring* jadwal dan inventaris untuk administrator.
