@@ -63,13 +63,12 @@
    git clone [https://github.com/username/camrent.git](https://github.com/username/camrent.git)
    cd camrent
 
-```
+
 
 2. **Instalasi Dependensi PHP & JavaScript**
 ```bash
 composer install
 npm install && npm run build
-
 ```
 
 
@@ -77,7 +76,6 @@ npm install && npm run build
 Salin berkas `.env.example` menjadi `.env`:
 ```bash
 cp .env.example .env
-
 ```
 
 
@@ -93,7 +91,6 @@ DB_PASSWORD=
 MIDTRANS_SERVER_KEY=SB-Mid-server-YOUR_SERVER_KEY
 MIDTRANS_CLIENT_KEY=SB-Mid-client-YOUR_CLIENT_KEY
 MIDTRANS_IS_PRODUCTION=false
-
 ```
 
 
@@ -101,21 +98,18 @@ MIDTRANS_IS_PRODUCTION=false
 ```bash
 php artisan key:generate
 php artisan storage:link
-
 ```
 
 
 5. **Migrasi Database & Seeder**
 ```bash
 php artisan migrate --seed
-
 ```
 
 
 6. **Jalankan Server Lokal**
 ```bash
 php artisan serve
-
 ```
 
 
