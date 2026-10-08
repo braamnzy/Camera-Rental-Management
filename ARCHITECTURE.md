@@ -235,3 +235,258 @@ Agar tidak terjadi bentrok saat bekerja langsung di branch `main`:
 * **`routes/api.php`** — Menampung seluruh endpoint REST API.
 * **`database/seeders/DatabaseSeeder.php`** — Menjalankan `UserSeeder` dan `CameraSeeder`.
 * **`.env`** — Kredensial Database lokal & Server/Client Key Midtrans Sandbox.
+
+# Saran Krusial untuk Project CamRent
+
+Kalau harus fokus **hanya pada masalah yang benar-benar bisa bikin project gagal / rusak**, ini 5 prioritas utama kamu:
+
+---
+
+## 🔴 1. Race Condition saat Booking (Paling Krusial)
+
+**Masalah:**
+Dua customer booking kamera yang sama di detik yang sama → validasi stok lolos dua-duanya → **overbooking**.
+
+**Solusi wajib:**
+```php
+DB::transaction(function () use ($request) {
+    $camera = Camera::where('id', $request->camera_id)
+                    ->lockForUpdate()   // ← kunci baris ini
+                    ->first();
+
+    $terpakai = Rental::where('camera_id', $camera->id)
+        ->whereIn('status', ['paid', 'picked_up'])
+        ->where(function ($q) use ($request) {
+            $q->whereBetween('start_date', [$request->start_date, $request->end_date])
+              ->orWhereBetween('end_date', [$request->start_date, $request->end_date]);
+        })->sum('quantity');
+
+    if ($terpakai + $request->quantity > $camera->stock) {
+        throw ValidationException::withMessages(['stock' => 'Stok tidak cukup']);
+    }
+
+    return Rental::create([...]);
+});
+```
+**Tanpa `lockForUpdate()` + transaction, project kamu akan kacau begitu ada traffic nyata.**
+
+---
+
+## 🔴 2. Verifikasi Signature Webhook Midtrans
+
+**Masalah:**
+Endpoint `/api/payments/midtrans-notification` publik. Kalau tidak verifikasi signature, **siapa pun bisa kirim POST palsu** dan mengubah status rental jadi `paid` tanpa bayar.
+
+**Solusi wajib:**
+```php
+$signature = hash('sha512',
+    $request->order_id .
+    $request->status_code .
+    $request->gross_amount .
+    config('midtrans.server_key')
+);
+
+if ($signature !== $request->signature_key) {
+    return response()->json(['message' => 'Invalid signature'], 403);
+}
+```
+**Ini bukan opsional.** Tanpa ini, sistem pembayaran kamu bisa dibobol hanya dengan `curl`.
+
+---
+
+## 🔴 3. Middleware `role` Belum Ada di Laravel
+
+**Masalah:**
+Di matriks otorisasi kamu tulis `role:admin` dan `role:customer`, tapi **middleware ini tidak ada by default di Laravel**. Kalau lupa dibuat, semua endpoint admin bisa diakses customer.
+
+**Solusi wajib:**
+```php
+// app/Http/Middleware/EnsureUserHasRole.php
+public function handle($request, Closure $next, string $role)
+{
+    if (!$request->user() || $request->user()->role !== $role) {
+        return response()->json(['message' => 'Forbidden'], 403);
+    }
+    return $next($request);
+}
+```
+Daftarkan sebagai alias `role` di `bootstrap/app.php`. **Tanpa ini, dashboard admin kamu terbuka untuk umum.**
+
+---
+
+## 🔴 4. Stok Kamera Tidak Bisa Dilacak Per Unit
+
+**Masalah:**
+Kolom `stock` cuma angka. Kalau satu kamera punya 3 unit, kamu tidak tahu **unit mana** yang disewa. Saat ada kerusakan, kamu tidak bisa lacak.
+
+**Solusi minimal (pilih salah satu):**
+
+**Opsi A — Cepat (cukup untuk MVP):**
+Tambahkan kolom `quantity` di `rentals`. Stok tersedia = `stock - sum(quantity yang aktif)`.
+
+**Opsi B — Benar (kalau mau serius):**
+Buat tabel `camera_units`:
+```
+id, camera_id, serial_number, condition, status ('available','rented','maintenance')
+```
+Lalu `rentals` merefer ke `camera_unit_id`.
+
+**Kalau tidak diperbaiki sekarang, nanti migrasi data akan sangat menyakitkan.**
+
+---
+
+## 🔴 5. Upload Gambar — Hapus File Lama & Validasi Ketat
+
+**Masalah:**
+- Kalau admin update foto kamera, file lama **menumpuk di storage** dan bikin server penuh.
+- Kalau tidak validasi mime, orang bisa upload `.php` dan **RCE**.
+
+**Solusi wajib:**
+```php
+// StoreCameraRequest
+'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+
+// Saat update
+if ($request->hasFile('image')) {
+    Storage::disk('public')->delete($camera->image); // hapus lama
+    $camera->image = $request->file('image')->store('cameras', 'public');
+}
+```
+**Tanpa validasi mime, ini celah keamanan fatal.**
+
+---
+
+## 🟡 Bonus: Hal Krusial Tapi Sering Diabaikan
+
+| # | Masalah | Dampak Kalau Dibiarkan |
+|---|---------|------------------------|
+| 6 | Tidak ada `'expired'` di enum status rental | Rental menggantung selamanya saat pembayaran kedaluwarsa |
+| 7 | Tidak ada Policy untuk "milik sendiri" | Customer bisa lihat/ubah rental orang lain |
+| 8 | Tidak ada rate limit di `/auth/login` | Brute force password |
+| 9 | Tidak ada logging webhook Midtrans | Susah debug kalau ada sengketa pembayaran |
+| 10 | `.env` Midtrans di-commit | Kunci server bocor |
+
+---
+
+## 🎯 Urutan Prioritas Pengerjaan
+
+```
+Minggu 1  →  #1 Race Condition + #3 Middleware role
+Minggu 2  →  #2 Signature Webhook + #5 Upload validation
+Minggu 3  →  #4 Struktur stok (pilih Opsi A dulu)
+Minggu 4  →  #6–#10 (hardening)
+```
+
+---
+
+Berikut adalah pemetaan **halaman-halaman antarmuka (UI/Views)** yang perlu dibuat oleh tim Frontend, beserta rincian **fitur, komponen, dan alur interaksi** di dalam setiap halamannya.
+
+---
+
+### 🎨 SISI CUSTOMER (FRONTEND 1)
+
+#### 1. Halaman Auth (`login.blade.php` & `register.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Form Login:** Input Email & Password dengan tombol *Submit*.
+* **Form Register:** Input Nama Lengkap, Email, No. WhatsApp (aktif), Password, & Konfirmasi Password.
+* **Feedback Error:** Validasi real-time (email sudah terdaftar, password kurang dari 8 karakter, kredensial salah).
+* **Redirect Smart:** Setelah login sukses, redirect otomatis ke Katalog atau ke halaman Checkout jika pengguna sebelumnya terhenti saat booking.
+
+
+
+#### 2. Halaman Katalog Utama (`customer/catalog.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Hero Banner / Promo:** Visual header ringkas persewaan kamera.
+* **Bar Pencarian & Filter:** Search bar nama kamera, filter dropdown kategori (DSLR, Mirrorless, Lens, Action Cam), dan sorting (Harga Termurah/Termahal).
+* **Grid Card Kamera:** Menampilkan Foto unit, Nama Kamera, Merk, Harga Sewa/Hari, dan Badge Ketersediaan (`Tersedia` / `Disewa`).
+* **Badge/Counter Notifikasi In-App:** Lonceng notifikasi di Navbar yang menampilkan jumlah pesan/status transaksi yang belum dibaca.
+
+
+
+#### 3. Halaman Detail Kamera (`customer/detail.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Galeri Foto Unit:** Tampilan utama foto kamera berresolusi tinggi.
+* **Informasi Spesifikasi:** Deskripsi kondisi, kelengkapan unit (baterai, charger, memory card, tas), dan harga sewa.
+* **Date Picker Range (Tanggal Sewa):** Widget kalender untuk memilih `Tanggal Mulai` dan `Tanggal Selesai`.
+* **Kalkulator Durasi & Total Harga:** Menghitung otomatis durasi hari ($\text{Selesai} - \text{Mulai}$) $\times$ harga sewa/hari secara real-time.
+* **Tombol "Sewa Sekarang":** Mengarah ke halaman *Booking Confirmation* (hanya aktif jika stok tersedia pada tanggal terpilih).
+
+
+
+#### 4. Halaman Konfirmasi Booking (`customer/booking-form.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Ringkasan Pesanan:** Rincian unit kamera, tanggal sewa, durasi hari, dan rincian total bayar.
+* **Form Data Penyewa:** Verifikasi Nama, No. HP, dan catatan tambahan.
+* **Metode Pembayaran (Midtrans Integration):** Tombol *"Lanjut ke Pembayaran"* yang memicu kemunculan **Pop-up / Modal Midtrans Snap**.
+* **Snap SDK Pop-up:** Pilihan metode pembayaran (QRIS, GoPay, Bank Transfer/VA, Credit Card) tanpa beralih halaman.
+
+
+
+#### 5. Halaman Riwayat Sewa Saya (`customer/my-rentals.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Tab Filter Status:** Memfilter transaksi (`Semua`, `Menunggu Bayar`, `Siap Diambil`, `Sedang Disewa`, `Selesai`).
+* **Card Transaksi:** Informasi ID Order, Tanggal Sewa, Total Harga, dan Status Transaksi (dilengkapi warna badge status).
+* **Tombol "Bayar Sekarang":** Muncul pada transaksi status `pending_payment` jika pop-up pembayaran sebelumnya tertutup.
+* **Tombol "Lihat Bukti/Nota":** Modal rincian transaksi ringkas yang siap dicetak/di-screenshot.
+
+
+
+---
+
+### 📊 SISI ADMIN (FRONTEND 2)
+
+#### 1. Halaman Dashboard Ringkasan (`admin/dashboard.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Widget Metric Cards:** Total Pendapatan Bulan Ini, Total Unit Kamera, Penyewaan Aktif (Sedang Dibawa), dan Transaksi Menunggu Konfirmasi.
+* **Tabel Transaksi Terbaru:** 5-10 transaksi masuk paling akhir untuk penanganan cepat.
+* **Quick Actions:** Tombol pintas ke *"Tambah Kamera Baru"* atau *"Cek Jadwal Hari Ini"*.
+
+
+
+#### 2. Halaman Kelola Inventaris Kamera (`admin/cameras/index.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Data Table Kamera:** Menampilkan daftar seluruh unit (Foto Thumbnail, Nama, Kategori, Stok, Harga/Hari, Status Unit).
+* **Filter & Pencarian Unit:** Cari berdasarkan nama atau filter unit yang sedang *Maintenance*.
+* **Action Buttons:** Tombol *Edit* unit, *Hapus* unit (dengan konfirmasi modal), dan Ubah Status Unit (`Tersedia` / `Perbaikan`).
+
+
+
+#### 3. Halaman Form Tambah/Edit Kamera (`admin/cameras/create.blade.php` & `edit.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Form Input Data:** Nama kamera, Merk, Kategori, Deskripsi/Spesifikasi, Harga/Hari, dan Jumlah Stok.
+* **File Upload Foto Display:** Input file `image/*` dilengkapi fitur **Live Image Preview** sebelum disimpan.
+* **Validasi Client-Side:** Peringatan jika format berkas bukan gambar atau ukuran berkas melebihi 2MB.
+
+
+
+#### 4. Halaman Kelola Transaksi Penyewaan (`admin/rentals/index.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Tabel Master Transaksi:** Daftar seluruh pesanan sewa (ID Order, Nama Customer, Unit, Tanggal Sewa, Status Bayar, Status Rental).
+* **Tombol Aksi Status Rental:**
+* **"Serahkan Unit (Pick Up)":** Mengubah status menjadi `sedang_disewa` saat customer mengambil unit di toko.
+* **"Konfirmasi Pengembalian (Return)":** Mengubah status menjadi `selesai` dan otomatis mengembalikan stok unit.
+* **"Batalkan Pesanan":** Untuk membatalkan transaksi yang bermasalah.
+
+
+
+
+
+#### 5. Halaman Monitoring Jadwal Sewa (`admin/rentals/schedule.blade.php`)
+
+* **Fitur & Komponen Utama:**
+* **Filter Tanggal / Kalender Jadwal:** Menampilkan rekap pemakaian kamera per hari/minggu.
+* **Tabel Matrix Availability:** Memetakan unit kamera mana saja yang sedang **Keluar (Disewa)**, **Tersedia di Toko**, atau **Jatuh Tempo Kembali Hari Ini**.
+* **Peringatan Keterlambatan (Overdue Alert):** Highlight warna merah untuk transaksi yang belum dikembalikan melewati `end_date`.
+
+
+
+---
