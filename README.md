@@ -62,7 +62,7 @@
    ```bash
    git clone [https://github.com/username/camrent.git](https://github.com/username/camrent.git)
    cd camrent
-
+    ```
 
 
 2. **Instalasi Dependensi PHP & JavaScript**
