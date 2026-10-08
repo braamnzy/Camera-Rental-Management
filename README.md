@@ -1,58 +1,191 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Berikut adalah draf berkas **`README.md`** standar dan profesional yang telah disesuaikan dengan arsitektur, alur kerja, skema database, serta pembagian tugas tim proyek **CamRent**.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+---
 
-## About Laravel
+### File: `README.md`
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```markdown
+# 📷 CamRent - Web Application for Camera Rental Service
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**CamRent** adalah platform penyewaan kamera berbasis web yang dibangun dengan framework **Laravel 13** di sisi backend dan **Blade / Vue / React / HTML-JS** di sisi frontend. Sistem ini dilengkapi dengan otentikasi API berbasis **Sanctum**, integrasi payment gateway **Midtrans Snap**, notifikasi *in-app*, serta sistem *monitoring* jadwal dan inventaris untuk administrator.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🛠️ Stack Teknologi
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- **Backend**: Laravel 13 (PHP 8.2+)
+- **Database**: MySQL / MariaDB
+- **Authentication**: Laravel Sanctum (Bearer Token)
+- **Payment Gateway**: Midtrans Snap API (Sandbox Mode)
+- **Frontend**: Blade / HTML5 / CSS3 / JavaScript (Vue/React Optional)
+- **Storage**: Storage Link Public (`storage/app/public/cameras`)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## 🏗️ Arsitektur & Fitur Utama
 
-## Agentic Development
+### 1. Fitur Penyewa (Customer)
+- **Autentikasi**: Registrasi, Login, Logout, & Manajemen Profil.
+- **Katalog & Filter**: Pencarian unit kamera, filter berdasarkan kategori/merk, dan sorting harga.
+- **Pemesanan (Booking)**: Pemilihan tanggal sewa via *Date Range Picker*, kalkulasi otomatis total hari & harga, serta validasi ketersediaan stok (*anti-overbooking*).
+- **Pembayaran Real-time**: Integrasi *Midtrans Snap Pop-up* (QRIS, VA, E-Wallet, Kartu Kredit).
+- **Riwayat & Status**: Pemantauan status tagihan dan transaksi sewa secara *real-time*.
+- **Notifikasi In-App**: Indikator status pesanan langsung di dalam aplikasi.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### 2. Fitur Pengelola (Admin)
+- **Dashboard Ringkasan**: Statistik total pendapatan, unit aktif disewa, dan transaksi *pending*.
+- **Manajemen Inventaris**: CRUD master unit kamera, *upload display image*, dan pengaturan status unit (*available* / *maintenance*).
+- **Pengelolaan Transaksi**: Konfirmasi pengambilan unit (*picked_up*), konfirmasi pengembalian (*returned* / *stok auto-restore*), dan pembatalan pesanan.
+- **Monitoring Jadwal (Schedule)**: Matriks jadwal ketersediaan kamera per tanggal serta *highlight overdue* (keterlambatan).
 
-```bash
-composer require laravel/boost --dev
+---
 
-php artisan boost:install
+## 🗄️ Skema Database & Relasi (5 Tabel Utama)
+
+1. **`users`**: Menyimpan data pengguna (`role`: `admin` | `customer`).
+   - Relasi: `hasMany(Rental)`, `hasMany(DatabaseNotification)`
+2. **`cameras`**: Master unit kamera (`daily_rate`, `stock`, `status`, `image`).
+   - Relasi: `hasMany(Rental)`
+3. **`rentals`**: Data transaksi penyewaan (`start_date`, `end_date`, `total_price`, `status`).
+   - Relasi: `belongsTo(User)`, `belongsTo(Camera)`, `hasOne(Payment)`
+4. **`payments`**: Transaksi pembayaran Midtrans (`order_id`, `snap_token`, `payment_status`).
+   - Relasi: `belongsTo(Rental)`
+5. **`notifications`**: Tabel bawaan Laravel In-App Notification.
+   - Relasi: `belongsTo(User)`
+
+---
+
+## ⚙️ Panduan Instalasi Lokal (Setup Environment)
+
+### Prasyarat
+- PHP >= 8.2
+- Composer
+- Node.js & NPM
+- MySQL / MariaDB
+
+### Langkah-Langkah Instalasi
+
+1. **Clone Repository**
+   ```bash
+   git clone [https://github.com/username/camrent.git](https://github.com/username/camrent.git)
+   cd camrent
+
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+2. **Instalasi Dependensi PHP & JavaScript**
+```bash
+composer install
+npm install && npm run build
 
-## Contributing
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
 
-## Code of Conduct
+3. **Konfigurasi Environment (`.env`)**
+Salin berkas `.env.example` menjadi `.env`:
+```bash
+cp .env.example .env
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```
 
-## Security Vulnerabilities
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Atur koneksi database dan kredensial Midtrans pada berkas `.env`:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=camrent_db
+DB_USERNAME=root
+DB_PASSWORD=
 
-## License
+MIDTRANS_SERVER_KEY=SB-Mid-server-YOUR_SERVER_KEY
+MIDTRANS_CLIENT_KEY=SB-Mid-client-YOUR_CLIENT_KEY
+MIDTRANS_IS_PRODUCTION=false
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+
+
+4. **Generate App Key & Symlink Storage**
+```bash
+php artisan key:generate
+php artisan storage:link
+
+```
+
+
+5. **Migrasi Database & Seeder**
+```bash
+php artisan migrate --seed
+
+```
+
+
+6. **Jalankan Server Lokal**
+```bash
+php artisan serve
+
+```
+
+
+Aplikasi akan berjalan pada halaman `http://127.0.0.1:8000`.
+
+---
+
+## 👥 Pembagian Tugas Tim (Jobdesk Mapping)
+
+| No | Nama | Peran | Area Kerja Utama |
+| --- | --- | --- | --- |
+| 1 | **Andyka** | Backend 1 | Core, Auth (Sanctum), CRUD Kamera, File Upload, In-App Notification |
+| 2 | **Abbas** | Backend 2 | Booking Logic, Midtrans Integration (Snap & Webhook IPN), Admin Schedule |
+| 3 | **Arifin** | Frontend 1 | Customer Portal, Auth UI, Catalog UI, Booking Form & Midtrans Pop-up |
+| 4 | **Huri** | Frontend 2 | Admin Dashboard, Layout Sidebar Admin, Inventory CRUD UI, Schedule Monitoring |
+
+> ⚠️ **Aturan Kerja Berkas Bersama (`routes/api.php`, `DatabaseSeeder.php`, `.env`)**:
+> Harap selalu berkoordinasi dengan tim sebelum melakukan *commit* atau *merge* pada berkas bersama untuk menghindari *conflict*.
+
+---
+
+## 🔐 Ringkasan RESTful API Endpoints
+
+| Method | Endpoint | Deskripsi | Akses |
+| --- | --- | --- | --- |
+| `POST` | `/api/auth/register` | Registrasi akun baru | Public |
+| `POST` | `/api/auth/login` | Login & generate Bearer Token | Public |
+| `GET` | `/api/cameras` | List katalog kamera (Filter/Search) | Public |
+| `GET` | `/api/cameras/{id}` | Detail unit kamera | Public |
+| `POST` | `/api/rentals` | Buat pesanan booking baru | Customer |
+| `POST` | `/api/payments/snap-token` | Generate Snap Token Midtrans | Customer |
+| `POST` | `/api/payments/midtrans-notification` | Webhook IPN Callback Midtrans | Public (Midtrans) |
+| `POST` | `/api/cameras` | Tambah unit kamera baru | Admin |
+| `PATCH` | `/api/rentals/{id}/status` | Update status rental (Pick Up / Return) | Admin |
+| `GET` | `/api/admin/rentals/schedule` | Rekap tabel/jadwal sewa | Admin |
+
+---
+
+## 🎨 Skema Warna Utama (Design System)
+
+* **Header / Navigation / Footer**: Deep Navy (`#1E293B`)
+* **Active Navigation / Hover**: Darker Navy (`#0F172A`)
+* **Background Utama**: Clean White (`#FFFFFF`)
+* **Card & Surface Background**: Light Slate (`#F8FAFC`)
+* **Tombol / Akses Utama**: Royal Blue (`#2563EB`)
+* **Status Success (Paid / Available)**: Emerald Green (`#10B981`)
+* **Status Warning (Pending / Rented)**: Amber Yellow (`#F59E0B`)
+* **Status Danger (Cancelled / Overdue)**: Rose Red (`#EF4444`)
+
+---
+
+## 📄 Lisensi
+
+Proyek ini dikembangkan untuk kebutuhan pembelajaran dan portofolio tim **CamRent** © 2026. All Rights Reserved.
+
+```
+
+---
+
+<ElicitationsGroup message="Bagaimana Anda ingin melanjutkannya?">
+  <Elicitation label="Buat skema DB Seeder lengkap (DatabaseSeeder.php)" query="Tolong buatkan kode PHP lengkap untuk database/seeders/DatabaseSeeder.php, UserSeeder.php, dan CameraSeeder.php sesuai spesifikasi CamRent."/>
+  <Elicitation label="Buat implementasi controller backend (AuthController & CameraController)" query="Tolong buatkan implementasi kode Laravel controller lengkap untuk AuthController.php dan CameraController.php milik Backend 1."/>
+  <Elicitation label="Buat alur penanganan Race Condition di RentalController" query="Tolong buatkan kode lengkap untuk RentalController.php yang menangani booking dengan lockForUpdate dan integrasi Midtrans Snap."/>
+</ElicitationsGroup>
+
+```
