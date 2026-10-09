@@ -22,9 +22,9 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date');
 
-            // ── Sistem Pengambilan Barang (BARU) ───────────
+            // ── Sistem Pengambilan Barang ──────────────────
             $table->date('pickup_date')->nullable()
-                  ->comment('Tanggal customer ambil unit');
+                  ->comment('Tanggal customer ambil/kirim unit');
             $table->time('pickup_time')->nullable()
                   ->comment('Jam pengambilan (HH:MM)');
             $table->enum('pickup_method', ['pickup', 'delivery'])
@@ -32,6 +32,13 @@ return new class extends Migration
                   ->comment('pickup = ambil di toko, delivery = dikirim');
             $table->text('pickup_notes')->nullable()
                   ->comment('Catatan tambahan dari customer');
+
+            // ── Lokasi & Biaya Ongkir (BARU) ───────────────
+            $table->enum('delivery_location', ['dalam_kota', 'luar_kota', 'ambil_toko'])
+                  ->default('ambil_toko')
+                  ->comment('dalam_kota / luar_kota / ambil_toko (biaya 0)');
+            $table->decimal('delivery_fee', 12, 2)->default(0)
+                  ->comment('Biaya ongkir (0 kalau ambil di toko)');
             // ────────────────────────────────────────────────
 
             // ── Perhitungan Biaya ──────────────────────────

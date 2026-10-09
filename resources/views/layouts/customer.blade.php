@@ -48,9 +48,11 @@
                         <span id="user-name" class="text-sm font-medium"></span>
                         <button id="logout-btn" class="hidden text-sm font-medium text-red-400 hover:text-red-300">Logout</button>
 
-                        <div id="guest-links" class="flex gap-4">
+                        <div id="guest-links" class="flex items-center gap-4">
                             <a href="/login" class="text-sm font-medium hover:text-gray-300">Login</a>
-                            <a href="/register" class="text-sm font-medium bg-blue-600 px-3 py-1 rounded hover:bg-blue-700">Daftar</a>
+                            <a href="/register" class="text-sm font-medium bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition">
+                                Daftar
+                            </a>
                         </div>
                     </div>
                 </div>

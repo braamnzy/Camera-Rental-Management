@@ -21,10 +21,12 @@ class Rental extends Model
         'camera_id',
         'start_date',
         'end_date',
-        'pickup_date',       
-        'pickup_time',      
-        'pickup_method',     
-        'pickup_notes',      
+        'pickup_date',
+        'pickup_time',
+        'pickup_method',
+        'pickup_notes',
+        'delivery_location',   // ← TAMBAH
+        'delivery_fee',        // ← TAMBAH
         'total_days',
         'quantity',
         'total_price',
@@ -37,12 +39,13 @@ class Rental extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'start_date'  => 'date',
-        'end_date'    => 'date',
-        'total_days'  => 'integer',
-        'quantity'    => 'integer',
-        'pickup_date' => 'date',
-        'total_price' => 'decimal:2',
+        'start_date'     => 'date',
+        'end_date'       => 'date',
+        'total_days'     => 'integer',
+        'quantity'       => 'integer',
+        'pickup_date'    => 'date',
+        'total_price'    => 'decimal:2',
+        'delivery_fee'   => 'decimal:2',   // ← TAMBAH
     ];
 
     /**
@@ -83,5 +86,25 @@ class Rental extends Model
     public function isPickedUp(): bool
     {
         return $this->status === 'picked_up';
+    }
+
+    /**
+     * Helper untuk mengecek apakah rental pakai delivery.
+     */
+    public function isDelivery(): bool
+    {
+        return $this->pickup_method === 'delivery';
+    }
+
+    /**
+     * Label lokasi pengantaran untuk tampilan.
+     */
+    public function getDeliveryLocationLabelAttribute(): string
+    {
+        return match ($this->delivery_location) {
+            'dalam_kota' => 'Dalam Kota',
+            'luar_kota'  => 'Luar Kota',
+            default      => 'Ambil di Toko',
+        };
     }
 }

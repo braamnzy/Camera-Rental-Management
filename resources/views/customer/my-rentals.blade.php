@@ -43,24 +43,40 @@
                 <p><strong>Periode Sewa:</strong> <span id="notaStartDate"></span> s/d <span id="notaEndDate"></span></p>
             </div>
 
-            <!-- ⬇️ INFO PENGAMBILAN BARU ⬇️ -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p class="text-[10px] font-bold text-blue-900 uppercase mb-2">📦 Info Pengambilan</p>
+            <!-- ⬇️ INFO PENGAMBILAN / PENGIRIMAN ⬇️ -->
+            <div id="notaPickupSection" class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p id="notaPickupTitle" class="text-[10px] font-bold text-blue-900 uppercase mb-2">📦 Info Pengambilan</p>
                 <div class="space-y-1 text-xs text-gray-700">
                     <p><strong>Metode:</strong> <span id="notaPickupMethod">-</span></p>
                     <p><strong>Tanggal:</strong> <span id="notaPickupDate">-</span></p>
                     <p><strong>Jam:</strong> <span id="notaPickupTime">-</span></p>
+                    <p id="notaDeliveryFeeRow" class="hidden">
+                        <strong>Biaya Kirim:</strong> <span id="notaDeliveryFee" class="text-purple-700 font-semibold">-</span>
+                    </p>
                     <p id="notaPickupNotesRow" class="hidden">
                         <strong>Catatan:</strong> <span id="notaPickupNotes" class="italic">-</span>
                     </p>
                 </div>
             </div>
-            <!-- ⬆️ END INFO PENGAMBILAN ⬆️ -->
+            <!-- ⬆️ END INFO ⬆️ -->
 
-            <div class="bg-gray-50 p-4 rounded text-center">
-                <p class="text-xs text-gray-500 mb-1">TOTAL LUNAS (MIDTRANS SNAP):</p>
-                <p class="text-2xl font-bold text-[#10B981]" id="notaTotal"></p>
-                <p class="text-xs font-semibold text-green-700 mt-1 bg-green-100 py-1 rounded">PAID / SETTLEMENT</p>
+            <!-- Rincian Biaya -->
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                <p class="text-[10px] font-bold text-gray-500 uppercase mb-2">Rincian Biaya</p>
+                <div class="space-y-1 text-xs text-gray-700">
+                    <div class="flex justify-between">
+                        <span>Harga Sewa</span>
+                        <span id="notaRentalPrice" class="font-semibold">-</span>
+                    </div>
+                    <div id="notaDeliveryFeeRow2" class="flex justify-between hidden">
+                        <span>Biaya Kirim</span>
+                        <span id="notaDeliveryFee2" class="text-purple-700 font-semibold">-</span>
+                    </div>
+                    <div class="flex justify-between border-t border-gray-200 pt-1 mt-1">
+                        <span class="font-bold">TOTAL</span>
+                        <span id="notaTotal" class="font-bold text-[#10B981]">-</span>
+                    </div>
+                </div>
             </div>
 
             <p class="text-xs text-center mt-6 text-gray-400">
@@ -125,6 +141,17 @@
                 // Format jam (10:00:00 → 10:00)
                 const pickupTime = rental.pickup_time ? rental.pickup_time.substring(0, 5) : '-';
                 const pickupDate = rental.pickup_date || '-';
+                const isDelivery = rental.pickup_method === 'delivery';
+
+                // ⬇️ INFO PICKUP / DELIVERY DI CARD
+                const pickupInfoHtml = isDelivery
+                    ? `<p class="text-xs text-purple-600 font-semibold mb-2">
+                         🚚 Dikirim (${rental.delivery_location === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota'}): 
+                         <strong>${pickupDate} ${pickupTime}</strong>
+                       </p>`
+                    : `<p class="text-xs text-slate-500 mb-2">
+                         📦 Ambil: <strong>${pickupDate} ${pickupTime}</strong>
+                       </p>`;
 
                 const cardHtml = `
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -137,9 +164,7 @@
                                 </div>
                                 <h3 class="text-lg font-bold text-gray-800">${camera.name}</h3>
                                 <p class="text-sm text-gray-500 mb-1">Tanggal Sewa: ${rental.start_date} s/d ${rental.end_date} (${rental.total_days} Hari)</p>
-                                <p class="text-xs text-slate-500 mb-2">
-                                    📦 Ambil: <strong>${pickupDate} ${pickupTime}</strong>
-                                </p>
+                                ${pickupInfoHtml}
                                 <p class="text-[#2563EB] font-bold">${formatRupiah(rental.total_price)}</p>
                             </div>
                         </div>
@@ -211,20 +236,60 @@
         const printBtn = document.getElementById('printBtn');
 
         function showNota(rental) {
+            const isDelivery = rental.pickup_method === 'delivery';
+            const deliveryFee = parseFloat(rental.delivery_fee || 0);
+            const totalPrice = parseFloat(rental.total_price || 0);
+            const rentalPrice = totalPrice - deliveryFee;
+
             // Data dasar
             document.getElementById('notaOrderId').textContent = `ORD-${rental.id}`;
             document.getElementById('notaCameraName').textContent = rental.camera ? rental.camera.name : '-';
             document.getElementById('notaStartDate').textContent = rental.start_date;
             document.getElementById('notaEndDate').textContent = rental.end_date;
-            document.getElementById('notaTotal').textContent = formatRupiah(rental.total_price);
 
-            // ⬇️ DATA PENGAMBILAN BARU
+            // Rincian biaya
+            document.getElementById('notaRentalPrice').textContent = formatRupiah(rentalPrice);
+            document.getElementById('notaTotal').textContent = formatRupiah(totalPrice);
+
+            // Section pickup/delivery
+            const pickupSection = document.getElementById('notaPickupSection');
+            const pickupTitle = document.getElementById('notaPickupTitle');
+
+            if (isDelivery) {
+                pickupSection.classList.remove('bg-blue-50', 'border-blue-200');
+                pickupSection.classList.add('bg-purple-50', 'border-purple-200');
+                pickupTitle.classList.remove('text-blue-900');
+                pickupTitle.classList.add('text-purple-900');
+                pickupTitle.textContent = '🚚 Info Pengiriman';
+
+                document.getElementById('notaPickupMethod').textContent =
+                    `Dikirim - ${rental.delivery_location === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota'}`;
+
+                // Tampilkan biaya kirim
+                document.getElementById('notaDeliveryFeeRow').classList.remove('hidden');
+                document.getElementById('notaDeliveryFee').textContent = `+${formatRupiah(deliveryFee)}`;
+                document.getElementById('notaDeliveryFeeRow2').classList.remove('hidden');
+                document.getElementById('notaDeliveryFee2').textContent = `+${formatRupiah(deliveryFee)}`;
+            } else {
+                pickupSection.classList.remove('bg-purple-50', 'border-purple-200');
+                pickupSection.classList.add('bg-blue-50', 'border-blue-200');
+                pickupTitle.classList.remove('text-purple-900');
+                pickupTitle.classList.add('text-blue-900');
+                pickupTitle.textContent = '📦 Info Pengambilan';
+
+                document.getElementById('notaPickupMethod').textContent = 'Ambil di Toko';
+
+                // Sembunyikan biaya kirim
+                document.getElementById('notaDeliveryFeeRow').classList.add('hidden');
+                document.getElementById('notaDeliveryFeeRow2').classList.add('hidden');
+            }
+
+            // Jadwal
             const pickupTime = rental.pickup_time ? rental.pickup_time.substring(0, 5) : '-';
-            document.getElementById('notaPickupMethod').textContent =
-                rental.pickup_method === 'delivery' ? 'Dikirim' : 'Ambil di Toko';
             document.getElementById('notaPickupDate').textContent = rental.pickup_date || '-';
             document.getElementById('notaPickupTime').textContent = pickupTime;
 
+            // Catatan
             const notesRow = document.getElementById('notaPickupNotesRow');
             if (rental.pickup_notes) {
                 document.getElementById('notaPickupNotes').textContent = rental.pickup_notes;
@@ -232,7 +297,6 @@
             } else {
                 notesRow.classList.add('hidden');
             }
-            // ⬆️ END DATA PENGAMBILAN
 
             // Data user
             if (rental.user) {

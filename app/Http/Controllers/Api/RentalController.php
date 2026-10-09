@@ -78,8 +78,15 @@ class RentalController extends Controller
         $validated = $request->validated();
         $quantity  = $validated['quantity'] ?? 1;
 
+        // ⬇️ KONSTANTA BIAYA ONGKIR (mudah diubah)
+        $DELIVERY_FEE = [
+            'dalam_kota' => 25000,
+            'luar_kota'  => 50000,
+            'ambil_toko' => 0,
+        ];
+
         // DB Transaction dengan Lock Baris (lockForUpdate)
-        $rental = DB::transaction(function () use ($request, $validated, $quantity) {
+        $rental = DB::transaction(function () use ($request, $validated, $quantity, $DELIVERY_FEE) {
             // 1. Lock baris kamera di database agar tidak dibaca/ditulis transaksi concurrent lain
             $camera = Camera::where('id', $validated['camera_id'])
                 ->lockForUpdate()
@@ -112,13 +119,25 @@ class RentalController extends Controller
                 ]);
             }
 
-            // 4. Kalkulasi Durasi & Total Harga
-            $startDate  = Carbon::parse($validated['start_date']);
-            $endDate    = Carbon::parse($validated['end_date']);
-            $totalDays  = max(1, $startDate->diffInDays($endDate) + 1);
-            $totalPrice = $totalDays * $camera->daily_rate * $quantity;
+            // 4. Kalkulasi Durasi & Harga Rental
+            $startDate   = Carbon::parse($validated['start_date']);
+            $endDate     = Carbon::parse($validated['end_date']);
+            $totalDays   = max(1, $startDate->diffInDays($endDate) + 1);
+            $rentalPrice = $totalDays * $camera->daily_rate * $quantity;
 
-            // 5. Simpan Record Rental
+            // ⬇️ 5. HITUNG BIAYA ONGKIR (BARU)
+            $deliveryLocation = 'ambil_toko';
+            $deliveryFee      = 0;
+
+            if ($validated['pickup_method'] === 'delivery') {
+                $deliveryLocation = $validated['delivery_location'] ?? 'dalam_kota';
+                $deliveryFee      = $DELIVERY_FEE[$deliveryLocation] ?? 0;
+            }
+
+            // 6. Total akhir = harga rental + biaya ongkir
+            $totalPrice = $rentalPrice + $deliveryFee;
+
+            // 7. Simpan Record Rental
             $newRental = Rental::create([
                 'user_id'     => $request->user()->id,
                 'camera_id'   => $camera->id,
@@ -128,6 +147,11 @@ class RentalController extends Controller
                 'pickup_time'   => $validated['pickup_time'],
                 'pickup_method' => $validated['pickup_method'],
                 'pickup_notes'  => $validated['pickup_notes'] ?? null,
+
+                // ⬇️ FIELD DELIVERY BARU
+                'delivery_location' => $deliveryLocation,
+                'delivery_fee'      => $deliveryFee,
+
                 'total_days'  => $totalDays,
                 'quantity'    => $quantity,
                 'total_price' => $totalPrice,
@@ -137,7 +161,7 @@ class RentalController extends Controller
             return $newRental;
         });
 
-        // 6. Kirim In-App Notification ke Customer
+        // 8. Kirim In-App Notification ke Customer
         $request->user()->notify(new RentalStatusNotification($rental->load('camera'), 'created'));
 
         return (new RentalResource($rental->load(['camera', 'user'])))

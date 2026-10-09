@@ -49,8 +49,10 @@
             const pickupTime = rental.pickup_time
                 ? rental.pickup_time.substring(0, 5)
                 : '-';
-            const pickupMethodLabel = rental.pickup_method === 'delivery'
-                ? 'Dikirim ke Alamat'
+
+            const isDelivery = rental.pickup_method === 'delivery';
+            const pickupMethodLabel = isDelivery
+                ? `Dikirim - ${rental.delivery_location === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota'}`
                 : 'Ambil di Toko';
 
             container.innerHTML = `
@@ -80,45 +82,74 @@
                         </div>
                     </div>
 
-                    <!-- ⬇️ INFO PENGAMBILAN BARU ⬇️ -->
-                    <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4">
+                    <!-- INFO PENGAMBILAN / PENGIRIMAN -->
+                    <div class="${isDelivery ? 'bg-purple-50 border-purple-100' : 'bg-blue-50 border-blue-100'} border rounded-xl p-4 mb-4">
                         <div class="flex items-center gap-2 mb-3">
-                            <svg class="w-4 h-4 text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 ${isDelivery ? 'text-purple-600' : 'text-[#2563EB]'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
-                            <h3 class="text-xs font-bold text-[#2563EB] uppercase tracking-wide">Info Pengambilan Barang</h3>
+                            <h3 class="text-xs font-bold ${isDelivery ? 'text-purple-700' : 'text-[#2563EB]'} uppercase tracking-wide">
+                                ${isDelivery ? '🚚 Info Pengiriman' : '📦 Info Pengambilan Barang'}
+                            </h3>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div class="bg-white rounded-lg p-3 border border-blue-100">
+                            <div class="bg-white rounded-lg p-3 border ${isDelivery ? 'border-purple-100' : 'border-blue-100'}">
                                 <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Metode</p>
-                                <p class="text-sm font-bold text-slate-900">${pickupMethodLabel}</p>
+                                <p class="text-sm font-bold ${isDelivery ? 'text-purple-700' : 'text-slate-900'}">${pickupMethodLabel}</p>
                             </div>
-                            <div class="bg-white rounded-lg p-3 border border-blue-100">
-                                <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Jadwal Ambil</p>
+                            <div class="bg-white rounded-lg p-3 border ${isDelivery ? 'border-purple-100' : 'border-blue-100'}">
+                                <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    ${isDelivery ? 'Jadwal Kirim' : 'Jadwal Ambil'}
+                                </p>
                                 <p class="text-sm font-bold text-slate-900">
-                                    ${rental.pickup_date || '-'} <span class="text-[#2563EB]">${pickupTime}</span>
+                                    ${rental.pickup_date || '-'} <span class="${isDelivery ? 'text-purple-600' : 'text-[#2563EB]'}">${pickupTime}</span>
                                 </p>
                             </div>
                         </div>
 
+                        ${isDelivery ? `
+                            <div class="mt-3 bg-white rounded-lg p-3 border border-purple-100">
+                                <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Biaya Pengiriman</p>
+                                <p class="text-sm font-bold text-purple-700">+${formatRupiah(rental.delivery_fee)}</p>
+                            </div>
+                        ` : ''}
+
                         ${rental.pickup_notes ? `
-                            <div class="mt-3 bg-white rounded-lg p-3 border border-blue-100">
+                            <div class="mt-3 bg-white rounded-lg p-3 border ${isDelivery ? 'border-purple-100' : 'border-blue-100'}">
                                 <p class="text-[10px] font-bold text-slate-500 uppercase mb-1">Catatan Anda</p>
                                 <p class="text-xs text-slate-700 italic">"${rental.pickup_notes}"</p>
                             </div>
                         ` : ''}
 
                         <p class="text-[10px] text-slate-500 mt-3">
-                            ℹ️ Harap datang tepat waktu dengan membawa <strong>KTP asli</strong> untuk pengambilan unit.
+                            ${isDelivery
+                                ? 'ℹ️ Admin akan konfirmasi alamat lengkap via WhatsApp sebelum pengiriman.'
+                                : 'ℹ️ Harap datang tepat waktu dengan membawa <strong>KTP asli</strong> untuk pengambilan unit.'
+                            }
                         </p>
                     </div>
 
-                    <!-- Total Pembayaran -->
-                    <div class="flex justify-between items-center bg-blue-50/70 border border-blue-100 p-4 rounded-xl">
-                        <span class="font-bold text-slate-700 text-sm">TOTAL PEMBAYARAN:</span>
-                        <span class="text-2xl font-extrabold text-[#2563EB]">${formatRupiah(rental.total_price)}</span>
+                    <!-- Rincian Biaya -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Rincian Biaya</p>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-slate-600">Harga Sewa (${rental.total_days} hari)</span>
+                            <span class="text-slate-800 font-semibold">
+                                ${formatRupiah(rental.total_price - (isDelivery ? rental.delivery_fee : 0))}
+                            </span>
+                        </div>
+                        ${isDelivery ? `
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-slate-600">Biaya Kirim (${rental.delivery_location === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota'})</span>
+                                <span class="text-purple-700 font-semibold">+${formatRupiah(rental.delivery_fee)}</span>
+                            </div>
+                        ` : ''}
+                        <div class="border-t border-slate-200 mt-2 pt-2 flex justify-between">
+                            <span class="font-bold text-slate-700 text-sm">TOTAL PEMBAYARAN</span>
+                            <span class="text-2xl font-extrabold text-[#2563EB]">${formatRupiah(rental.total_price)}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -151,7 +182,6 @@
                         window.snap.pay(snapToken, {
                             onSuccess: function(result) {
                                 alert("Pembayaran berhasil! Menyegarkan status...");
-                                // Beri waktu webhook Midtrans masuk ke backend
                                 setTimeout(() => {
                                     window.location.href = "/my-rentals";
                                 }, 3000);

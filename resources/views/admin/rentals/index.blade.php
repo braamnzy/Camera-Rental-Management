@@ -15,24 +15,27 @@
 
 <!-- Tabel Transaksi -->
 <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-    <table class="w-full text-left text-sm text-slate-600">
-        <thead class="bg-slate-100 text-xs text-slate-500 uppercase border-b border-slate-200">
-            <tr>
-                <th class="px-6 py-3">ID / Penyewa</th>
-                <th class="px-6 py-3">Unit Kamera</th>
-                <th class="px-6 py-3">Tanggal Sewa</th>
-                <th class="px-6 py-3">Jadwal Ambil</th>
-                <th class="px-6 py-3">Total Bayar</th>
-                <th class="px-6 py-3">Status</th>
-                <th class="px-6 py-3 text-right">Aksi Status</th>
-            </tr>
-        </thead>
-        <tbody id="rentalsTableBody" class="divide-y divide-slate-200">
-            <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-slate-400 font-medium">Memuat data transaksi...</td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-100 text-xs text-slate-500 uppercase border-b border-slate-200">
+                <tr>
+                    <th class="px-6 py-3">ID / Penyewa</th>
+                    <th class="px-6 py-3">Unit Kamera</th>
+                    <th class="px-6 py-3">Tanggal Sewa</th>
+                    <th class="px-6 py-3">Jadwal Ambil</th>
+                    <th class="px-6 py-3">Lokasi / Ongkir</th>
+                    <th class="px-6 py-3">Total Bayar</th>
+                    <th class="px-6 py-3">Status</th>
+                    <th class="px-6 py-3 text-right">Aksi Status</th>
+                </tr>
+            </thead>
+            <tbody id="rentalsTableBody" class="divide-y divide-slate-200">
+                <tr>
+                    <td colspan="8" class="px-6 py-8 text-center text-slate-400 font-medium">Memuat data transaksi...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 @endsection
 
@@ -84,18 +87,17 @@
             })
             .catch(err => {
                 console.error("Error loading rentals:", err);
-                tableBody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-rose-500 font-medium">Gagal memuat data transaksi: ${err.message}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-rose-500 font-medium">Gagal memuat data transaksi: ${err.message}</td></tr>`;
             });
         };
 
-        // Helper: cek apakah tanggal tertentu = hari ini
+        // Helper
         const isToday = (dateStr) => {
             if (!dateStr) return false;
             const today = new Date().toISOString().split('T')[0];
             return dateStr === today;
         };
 
-        // Helper: format jam (10:00:00 → 10:00)
         const formatTime = (timeStr) => {
             if (!timeStr) return '-';
             return timeStr.substring(0, 5);
@@ -103,7 +105,7 @@
 
         const renderRentals = (rentals) => {
             if (!Array.isArray(rentals) || rentals.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-slate-400">Tidak ada data transaksi ditemukan.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="8" class="px-6 py-8 text-center text-slate-400">Tidak ada data transaksi ditemukan.</td></tr>';
                 return;
             }
 
@@ -127,9 +129,39 @@
                                 ${isPickupToday ? '🔔 ' : ''}${pickupDate}
                             </div>
                             <div class="text-slate-500">
-                                ${pickupTime} • ${pickupMethod}
+                                ${pickupTime}
                             </div>
                             ${rental.pickup_notes ? `<div class="text-[10px] italic text-slate-400 mt-0.5 truncate max-w-[150px]" title="${rental.pickup_notes}">"${rental.pickup_notes}"</div>` : ''}
+                        </div>
+                    `;
+                }
+
+                // ⬇️ INFO LOKASI / ONGKIR
+                const isDelivery = rental.pickup_method === 'delivery';
+                const deliveryFee = parseFloat(rental.delivery_fee || 0);
+                let locationHtml = '';
+
+                if (isDelivery) {
+                    const locLabel = rental.delivery_location === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota';
+                    locationHtml = `
+                        <div class="text-xs">
+                            <div class="font-bold text-purple-700 flex items-center gap-1">
+                                🚚 ${locLabel}
+                            </div>
+                            <div class="text-slate-500 mt-0.5">
+                                +${formatRupiah(deliveryFee)}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    locationHtml = `
+                        <div class="text-xs">
+                            <div class="font-semibold text-slate-600">
+                                🏪 Ambil di Toko
+                            </div>
+                            <div class="text-slate-400 mt-0.5">
+                                Gratis
+                            </div>
                         </div>
                     `;
                 }
@@ -138,16 +170,16 @@
                 let actionButtons = '-';
                 if (rental.status === 'paid') {
                     const urgency = isPickupToday ? 'bg-amber-600 hover:bg-amber-700 animate-pulse' : 'bg-blue-600 hover:bg-blue-700';
-                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'picked_up')" class="px-3 py-1.5 ${urgency} text-white text-xs font-semibold rounded transition">Serahkan Unit</button>`;
+                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'picked_up')" class="px-3 py-1.5 ${urgency} text-white text-xs font-semibold rounded transition whitespace-nowrap">Serahkan Unit</button>`;
                 } else if (rental.status === 'picked_up') {
-                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'returned')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition">Konfirmasi Return</button>`;
+                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'returned')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded transition whitespace-nowrap">Konfirmasi Return</button>`;
                 } else if (rental.status === 'pending_payment') {
-                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'cancelled')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded transition">Batalkan</button>`;
+                    actionButtons = `<button onclick="updateStatus(${rental.id}, 'cancelled')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded transition whitespace-nowrap">Batalkan</button>`;
                 }
 
                 const tr = document.createElement('tr');
-                tr.className = isPickupToday && rental.status === 'paid' 
-                    ? 'bg-amber-50/50 hover:bg-amber-50 transition' 
+                tr.className = isPickupToday && rental.status === 'paid'
+                    ? 'bg-amber-50/50 hover:bg-amber-50 transition'
                     : 'hover:bg-slate-50 transition';
                 tr.innerHTML = `
                     <td class="px-6 py-4">
@@ -160,7 +192,8 @@
                         <div>Selesai: <span class="font-medium text-slate-700">${rental.end_date}</span> (${rental.total_days || 1} Hari)</div>
                     </td>
                     <td class="px-6 py-4">${pickupHtml}</td>
-                    <td class="px-6 py-4 font-bold text-[#2563EB]">${formatRupiah(rental.total_price)}</td>
+                    <td class="px-6 py-4">${locationHtml}</td>
+                    <td class="px-6 py-4 font-bold text-[#2563EB] whitespace-nowrap">${formatRupiah(rental.total_price)}</td>
                     <td class="px-6 py-4">${badge}</td>
                     <td class="px-6 py-4 text-right">${actionButtons}</td>
                 `;
@@ -191,7 +224,6 @@
             });
         };
 
-        // Perbaikan: event.target diganti dengan parameter `btn`
         window.filterStatus = (status, btn) => {
             document.querySelectorAll('.status-filter-btn').forEach(b => {
                 b.className = 'status-filter-btn px-4 py-2 text-xs font-semibold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition';

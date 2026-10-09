@@ -30,6 +30,10 @@ class RentalResource extends JsonResource
             'pickup_method' => $this->pickup_method,
             'pickup_notes'  => $this->pickup_notes,
 
+            // ⬇️ FIELD DELIVERY BARU
+            'delivery_location' => $this->delivery_location,
+            'delivery_fee'      => (float) ($this->delivery_fee ?? 0),
+
             // Relasi User (di-load & dicek ketersediaannya)
             'user' => $this->whenLoaded('user', function () {
                 if (! $this->user) return null;

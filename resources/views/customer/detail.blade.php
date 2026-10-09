@@ -83,7 +83,7 @@
                             </div>
                         </div>
 
-                        <!-- Form Booking + Pickup -->
+                        <!-- Form Booking + Pickup + Delivery -->
                         <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
                             <h3 class="text-sm font-bold text-slate-800 mb-3">Pilih Tanggal Sewa</h3>
 
@@ -105,11 +105,11 @@
                                 </div>
                             </div>
 
-                            <!-- ⬇️ SECTION PENGAMBILAN BARANG ⬇️ -->
+                            <!-- SECTION PENGAMBILAN BARANG -->
                             <div class="border-t border-slate-200 pt-4 mb-4">
                                 <h3 class="text-sm font-bold text-slate-800 mb-3">Sistem Pengambilan Barang</h3>
 
-                                <!-- Metode Pengambilan -->
+                                <!-- Metode Pengambilan (dua-duanya aktif) -->
                                 <div class="mb-3">
                                     <label class="block text-xs font-semibold text-slate-600 mb-2">
                                         Metode <span class="text-rose-500">*</span>
@@ -120,10 +120,10 @@
                                                    class="text-[#2563EB] focus:ring-[#2563EB]">
                                             <span>Ambil di Toko</span>
                                         </label>
-                                        <label class="flex items-center gap-2 cursor-pointer text-sm opacity-50">
-                                            <input type="radio" name="pickupMethod" value="delivery" disabled
+                                        <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                            <input type="radio" name="pickupMethod" value="delivery"
                                                    class="text-[#2563EB] focus:ring-[#2563EB]">
-                                            <span>Dikirim (Coming Soon)</span>
+                                            <span>Dikirim</span>
                                         </label>
                                     </div>
                                 </div>
@@ -132,20 +132,33 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-600 mb-1">
-                                            Tanggal Ambil <span class="text-rose-500">*</span>
+                                            <span id="labelPickupDate">Tanggal Ambil</span> <span class="text-rose-500">*</span>
                                         </label>
                                         <input type="date" id="pickupDate" min="${today}"
                                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2563EB] focus:outline-none">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-semibold text-slate-600 mb-1">
-                                            Jam Ambil <span class="text-rose-500">*</span>
+                                            <span id="labelPickupTime">Jam Ambil</span> <span class="text-rose-500">*</span>
                                         </label>
                                         <input type="time" id="pickupTime" min="09:00" max="20:00" value="10:00"
                                                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2563EB] focus:outline-none">
                                     </div>
                                 </div>
                                 <p class="text-[10px] text-slate-500 mb-3">Toko buka jam 09:00 – 20:00 WIB</p>
+
+                                <!-- DROPDOWN LOKASI (muncul kalau pilih Dikirim) -->
+                                <div id="deliverySection" class="hidden mb-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                    <label class="block text-xs font-semibold text-purple-800 mb-2">
+                                        🚚 Lokasi Pengantaran <span class="text-rose-500">*</span>
+                                    </label>
+                                    <select id="deliveryLocation"
+                                            class="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                                        <option value="dalam_kota">Dalam Kota (+Rp 25.000)</option>
+                                        <option value="luar_kota">Luar Kota (+Rp 50.000)</option>
+                                    </select>
+                                    <p class="text-[10px] text-purple-600 mt-2">Pastikan alamat lengkap dikonfirmasi via WhatsApp ke admin.</p>
+                                </div>
 
                                 <!-- Catatan -->
                                 <div class="mb-2">
@@ -157,13 +170,13 @@
                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#2563EB] focus:outline-none"></textarea>
                                 </div>
                             </div>
-                            <!-- ⬆️ END SECTION PENGAMBILAN ⬆️ -->
 
                             <!-- Estimasi Total -->
                             <div class="flex justify-between items-center pt-3 border-t border-slate-200 mb-4">
                                 <div>
                                     <span class="text-xs text-slate-500 block">Estimasi Total (<span id="totalDaysText">0</span> Hari)</span>
                                     <span id="totalPriceText" class="text-xl font-extrabold text-[#2563EB]">${formatRupiah(0)}</span>
+                                    <span id="deliveryFeeText" class="text-xs text-purple-600 block mt-1"></span>
                                 </div>
                             </div>
 
@@ -184,18 +197,53 @@
             const pickupNotesInput = document.getElementById('pickupNotes');
             const totalDaysText = document.getElementById('totalDaysText');
             const totalPriceText = document.getElementById('totalPriceText');
+            const deliveryFeeText = document.getElementById('deliveryFeeText');
             const btnSewa = document.getElementById('btnSewa');
+
+            // === ELEMEN DELIVERY ===
+            const deliverySection = document.getElementById('deliverySection');
+            const deliveryLocation = document.getElementById('deliveryLocation');
+            const labelPickupDate = document.getElementById('labelPickupDate');
+            const labelPickupTime = document.getElementById('labelPickupTime');
+
+            // === KONSTANTA BIAYA ONGKIR (harus sama dengan backend) ===
+            const DELIVERY_FEE = {
+                'dalam_kota': 25000,
+                'luar_kota': 50000,
+                'ambil_toko': 0,
+            };
 
             // === AUTO-FILL: pickup_date = start_date ===
             startDateInput.addEventListener('change', () => {
                 if (startDateInput.value) {
                     pickupDateInput.value = startDateInput.value;
-                    pickupDateInput.min = startDateInput.value;  // pickup tidak boleh sebelum start
+                    pickupDateInput.min = startDateInput.value;
                 }
                 calculateTotal();
             });
 
-            // === KALKULASI TOTAL ===
+            endDateInput.addEventListener('change', calculateTotal);
+
+            // === TOGGLE DELIVERY SECTION + UBAH LABEL ===
+            document.querySelectorAll('input[name="pickupMethod"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const method = document.querySelector('input[name="pickupMethod"]:checked').value;
+                    if (method === 'delivery') {
+                        deliverySection.classList.remove('hidden');
+                        labelPickupDate.textContent = 'Tanggal Kirim';
+                        labelPickupTime.textContent = 'Jam Kirim';
+                    } else {
+                        deliverySection.classList.add('hidden');
+                        labelPickupDate.textContent = 'Tanggal Ambil';
+                        labelPickupTime.textContent = 'Jam Ambil';
+                    }
+                    calculateTotal();
+                });
+            });
+
+            deliveryLocation.addEventListener('change', calculateTotal);
+
+            // === KALKULASI TOTAL (termasuk ongkir) ===
             function calculateTotal() {
                 const startVal = startDateInput.value;
                 const endVal = endDateInput.value;
@@ -203,6 +251,7 @@
                 if (!startVal || !endVal) {
                     totalDaysText.textContent = '0';
                     totalPriceText.textContent = formatRupiah(0);
+                    deliveryFeeText.textContent = '';
                     return null;
                 }
 
@@ -217,14 +266,26 @@
 
                 const diffTime = Math.abs(end - start);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                const totalPrice = diffDays * (cam.daily_rate || 0);
+                const rentalPrice = diffDays * (cam.daily_rate || 0);
+
+                // Hitung ongkir
+                const method = document.querySelector('input[name="pickupMethod"]:checked')?.value || 'pickup';
+                let deliveryFee = 0;
+
+                if (method === 'delivery') {
+                    deliveryFee = DELIVERY_FEE[deliveryLocation.value] || 0;
+                    deliveryFeeText.textContent = `+ Ongkir ${deliveryLocation.value === 'dalam_kota' ? 'Dalam Kota' : 'Luar Kota'}: ${formatRupiah(deliveryFee)}`;
+                } else {
+                    deliveryFeeText.textContent = '';
+                }
+
+                const totalPrice = rentalPrice + deliveryFee;
 
                 totalDaysText.textContent = diffDays;
                 totalPriceText.textContent = formatRupiah(totalPrice);
-                return { diffDays, totalPrice, startVal, endVal };
-            }
 
-            endDateInput.addEventListener('change', calculateTotal);
+                return { diffDays, rentalPrice, deliveryFee, totalPrice, startVal, endVal };
+            }
 
             // === SUBMIT BOOKING ===
             btnSewa.addEventListener('click', async () => {
@@ -241,11 +302,11 @@
                     return;
                 }
 
-                // Validasi field pickup
                 const pickupDate = pickupDateInput.value;
                 const pickupTime = pickupTimeInput.value;
                 const pickupMethod = document.querySelector('input[name="pickupMethod"]:checked')?.value || 'pickup';
                 const pickupNotes = pickupNotesInput.value;
+                const deliveryLocationVal = pickupMethod === 'delivery' ? deliveryLocation.value : null;
 
                 if (!pickupDate) {
                     alert('Silakan pilih tanggal pengambilan.');
@@ -257,6 +318,10 @@
                 }
                 if (pickupDate < calc.startVal) {
                     alert('Tanggal pengambilan tidak boleh sebelum tanggal sewa mulai.');
+                    return;
+                }
+                if (pickupMethod === 'delivery' && !deliveryLocationVal) {
+                    alert('Silakan pilih lokasi pengantaran.');
                     return;
                 }
 
@@ -276,19 +341,17 @@
                             start_date: calc.startVal,
                             end_date: calc.endVal,
                             quantity: 1,
-
-                            // ⬇️ FIELD PENGAMBILAN BARU
                             pickup_date: pickupDate,
                             pickup_time: pickupTime,
                             pickup_method: pickupMethod,
                             pickup_notes: pickupNotes || null,
+                            delivery_location: deliveryLocationVal,  // ← KIRIM FIELD BARU
                         })
                     });
 
                     const result = await response.json();
 
                     if (!response.ok) {
-                        // Handle validation errors (422)
                         if (response.status === 422 && result.errors) {
                             const firstError = Object.values(result.errors)[0]?.[0] || result.message;
                             throw new Error(firstError);
