@@ -20,7 +20,7 @@
             </div>
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">Harga Sewa per Hari (Rp)</label>
-                <input type="number" name="daily_rate" id="daily_rate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#2563EB]" placeholder="250000">
+                <input type="number" name="daily_rate" id="daily_rate" min="0" oninput="if(this.value < 0) this.value = 0;" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-[#2563EB]" placeholder="250000">
                 <span id="error-daily_rate" class="text-xs text-red-500 mt-1 block hidden"></span>
             </div>
         </div>
