@@ -17,6 +17,8 @@ Route::get('/', function () {
 Route::view('/login', 'auth.login')->name('login');
 Route::view('/register', 'auth.register')->name('register');
 
+Route::post('/admin/users/{user}/approve', [AdminDashboardController::class, 'approveUser'])->name('admin.users.approve');
+Route::post('/admin/users/{user}/reject', [AdminDashboardController::class, 'rejectUser'])->name('admin.users.reject');
 // Customer Portal Views
 Route::view('/catalog', 'customer.catalog')->name('catalog.index');
 Route::view('/catalog/{id}', 'customer.detail')->name('catalog.show');

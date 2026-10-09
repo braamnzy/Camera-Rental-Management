@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RentalController;
 use Illuminate\Support\Facades\Route;
-
+use Illuminate\Http\Request;
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -42,6 +42,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Transaksi Penyewaan (Akses Bersama: Customer & Admin)
     Route::get('/rentals', [RentalController::class, 'index']);
     Route::get('/rentals/{id}', [RentalController::class, 'show']);
+
+    Route::get('/admin/users/pending', [AuthController::class, 'pendingUsers']);
+    Route::post('/admin/users/{id}/approve', [AuthController::class, 'approve']);
+    Route::post('/admin/users/{id}/reject', [AuthController::class, 'reject']);
 
     /*
     |--------------------------------------------------------------------------

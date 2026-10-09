@@ -10,7 +10,8 @@
             </p>
         </div>
 
-        <form id="registerForm" class="mt-8 space-y-6">
+        <!-- Ditambahkan enctype="multipart/form-data" untuk pengiriman file -->
+        <form id="registerForm" class="mt-8 space-y-6" enctype="multipart/form-data">
             <!-- Alert untuk Pesan Error / Sukses -->
             <div id="alert-box" class="hidden px-4 py-3 rounded text-sm mb-4"></div>
 
@@ -32,6 +33,13 @@
                     <label for="phone" class="block text-sm font-medium text-gray-700">Nomor WhatsApp / HP Aktif</label>
                     <input id="phone" name="phone" type="tel" required class="mt-1 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB] sm:text-sm" placeholder="Contoh: 081234567890">
                 </div>
+                
+                <!-- Unggah Foto KTP -->
+                <div>
+                    <label for="ktp_image" class="block text-sm font-semibold text-slate-700 mb-1">Unggah Foto KTP</label>
+                    <input type="file" name="ktp_image" id="ktp_image" accept="image/*" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-[#2563EB] focus:border-[#2563EB]">
+                    <span class="text-xs text-gray-500 mt-1 block">Format: JPG, PNG (Maksimal 2MB)</span>
+                </div>
 
                 <!-- Password -->
                 <div>
@@ -52,6 +60,7 @@
                 </button>
             </div>
         </form>
+        
     </div>
 </div>
 @endsection
@@ -76,9 +85,6 @@
             submitBtn.textContent = 'Memproses...';
             submitBtn.disabled = true;
 
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const phone = document.getElementById('phone').value;
             const password = document.getElementById('password').value;
             const password_confirmation = document.getElementById('password_confirmation').value;
 
@@ -90,43 +96,31 @@
                 return;
             }
 
+            // Menggunakan FormData untuk mengambil seluruh input termasuk file KTP
+            const formData = new FormData(registerForm);
+
             try {
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json' // Memaksa Laravel membalikkan response JSON, bukan redirect halaman
+                        'Accept': 'application/json'
+                        // Header Content-Type sengaja dilepas agar browser membuat boundary multipart otomatis untuk file
                     },
-                    body: JSON.stringify({
-                        name,
-                        email,
-                        phone,
-                        password,
-                        password_confirmation
-                    })
+                    body: formData
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
                     // Tampilkan sukses
-                    showAlert('Pendaftaran berhasil! Mengalihkan ke halaman login...', true);
+                    showAlert(data.message || 'Pendaftaran berhasil! Mengalihkan ke halaman login...', true);
 
-                    // Jika backend langsung mengirimkan token (Auto-Login)
-                    if (data.token) {
-                        localStorage.setItem('token', data.token);
-                        setTimeout(() => {
-                            window.location.href = '/catalog';
-                        }, 1500);
-                    } else {
-                        // Jika tidak auto-login, lempar ke halaman login manual
-                        setTimeout(() => {
-                            window.location.href = '/login';
-                        }, 1500);
-                    }
+                    // Lempar ke halaman login
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
                 } else {
-                    // Tangani error dari backend (misal: email sudah terpakai)
-                    // Mengambil pesan error pertama dari validasi Laravel
+                    // Tangani error validasi dari backend
                     let errorMessage = data.message || 'Pendaftaran gagal.';
                     if (data.errors) {
                         const firstErrorKey = Object.keys(data.errors)[0];

@@ -53,6 +53,36 @@
     </div>
 </div>
 
+<!-- SECTION BARU: Verifikasi KTP User Baru -->
+<div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-8">
+    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-[#F8FAFC]">
+        <div>
+            <h2 class="font-bold text-slate-800">Persetujuan Akun User Baru (KTP)</h2>
+            <p class="text-xs text-slate-500">Tinjau foto KTP dan berikan persetujuan (ACC) akun customer</p>
+        </div>
+        <span id="pendingUsersBadge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">0 Pending</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-100 text-xs text-slate-500 uppercase border-b border-slate-200">
+                <tr>
+                    <th class="px-6 py-3">Nama Lengkap</th>
+                    <th class="px-6 py-3">Email & No HP</th>
+                    <th class="px-6 py-3">Foto KTP</th>
+                    <th class="px-6 py-3">Tanggal Daftar</th>
+                    <th class="px-6 py-3 text-center">Aksi (ACC)</th>
+                </tr>
+            </thead>
+            <tbody id="pendingUsersBody" class="divide-y divide-slate-200">
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-slate-400 font-medium">Memuat data verifikasi KTP...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 <!-- Transaksi Terbaru Table -->
 <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
     <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-[#F8FAFC]">
@@ -83,6 +113,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         const token = localStorage.getItem('token');
         const tableBody = document.getElementById('recentRentalsBody');
+        const pendingUsersBody = document.getElementById('pendingUsersBody');
+        const pendingUsersBadge = document.getElementById('pendingUsersBadge');
 
         if (!token || token === 'undefined' || token === 'null') {
             localStorage.removeItem('token');
@@ -96,6 +128,103 @@
             minimumFractionDigits: 0
         }).format(angka || 0);
 
+        // --- 1. MOUNT DATA VERIFIKASI KTP USER PENDING ---
+        const fetchPendingUsers = () => {
+            fetch('/api/admin/users/pending', {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => res.json())
+            .then(response => {
+                const users = response.data || [];
+                pendingUsersBadge.textContent = `${users.length} Pending`;
+                pendingUsersBody.innerHTML = '';
+
+                if (users.length === 0) {
+                    pendingUsersBody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">Tidak ada pendaftaran user baru yang perlu diverifikasi.</td></tr>';
+                    return;
+                }
+
+                users.forEach(user => {
+                    const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
+                    const ktpLink = user.ktp_image 
+                        ? `<a href="${user.ktp_image}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition">
+                             Lihat KTP ↗
+                           </a>`
+                        : `<span class="text-xs text-slate-400">Tidak ada KTP</span>`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-semibold text-slate-900">${user.name}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-slate-800 font-medium">${user.email}</div>
+                            <div class="text-xs text-slate-400 mt-0.5">${user.phone || '-'}</div>
+                        </td>
+                        <td class="px-6 py-4">${ktpLink}</td>
+                        <td class="px-6 py-4 text-xs text-slate-500">${createdDate}</td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex justify-center gap-2">
+                                <button onclick="approveUser(${user.id})" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">
+                                    Setujui (ACC)
+                                </button>
+                                <button onclick="rejectUser(${user.id})" class="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition">
+                                    Tolak
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    pendingUsersBody.appendChild(tr);
+                });
+            })
+            .catch(err => {
+                console.error("Pending Users Fetch Error:", err);
+                pendingUsersBody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-rose-500">Gagal memuat data verifikasi user.</td></tr>';
+            });
+        };
+
+        // Helper Eksekusi ACC / Tolak
+        window.approveUser = (userId) => {
+            if (!confirm('Apakah Anda yakin ingin menyetujui akun pengguna ini?')) return;
+            fetch(`/api/admin/users/${userId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || 'Akun berhasil disetujui');
+                fetchPendingUsers();
+            })
+            .catch(err => alert('Gagal memproses persetujuan akun.'));
+        };
+
+        window.rejectUser = (userId) => {
+            if (!confirm('Apakah Anda yakin ingin menolak akun pengguna ini?')) return;
+            fetch(`/api/admin/users/${userId}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message || 'Akun telah ditolak');
+                fetchPendingUsers();
+            })
+            .catch(err => alert('Gagal memproses penolakan akun.'));
+        };
+
+        // Jalankan fetch pending users
+        fetchPendingUsers();
+
+
+        // --- 2. MOUNT DATA TRANSAKSI TERBARU & METRIC CARDS ---
         const statusConfig = {
             'pending_payment': { label: 'PENDING PAYMENT', class: 'bg-amber-100 text-amber-700' },
             'paid': { label: 'PAID (SIAP AMBIL)', class: 'bg-emerald-100 text-emerald-700' },
@@ -126,7 +255,6 @@
         .then(response => {
             if (!response) return;
 
-            // Ekstrak data jika balasan berbentuk Paginasi (response.data) atau Array langsung
             const rentals = Array.isArray(response) ? response : (response.data || []);
 
             let totalRevenue = 0;
