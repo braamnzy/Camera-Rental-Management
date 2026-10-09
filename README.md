@@ -1,10 +1,32 @@
-# 📷 CamRent - Web Application for Camera Rental Service
+# 📷 CamRent 
+> Web Application for Camera Rental Service
 
+---
+
+## 📌 Informasi Kelompok
+- **Nomor Kelompok:** Kelompok 03
+- **Shift Praktikum:** Shift D
+
+---
+
+## 👥 Anggota Kelompok
+| No | Nama Lengkap | NIM | Shift Awal | Shift Akhir | Jobdesk / Kontribusi | Link Video Penjelasan |
+|---|---|---|---|---|---|---|
+| 1 | Andyka Zefanya Bramantyo | H1H024039 | [Shift Awal] | [Shift Akhir] | Backend 1, Core, Auth (Sanctum), CRUD Kamera, File Upload, In-App Notification | [YouTube/Drive](https://...) |
+| 2 | Ibnu Abbas | H1H024038 | [Shift Awal] | [Shift Akhir] |Backend 2, Booking Logic, Midtrans Integration (Snap & Webhook IPN), Admin Schedule | [YouTube/Drive](https://...) |
+| 3 | Arifin Budi Kusuma | H1H024040 | Shift B | Shift D | Frontend 1, Customer Portal, Auth UI, Catalog UI, Booking Form & Midtrans Pop-up | [YouTube/Drive](https://...) |
+| 4 | Huriyatun Nur Anajmi | H1H024035 | [Shift Awal] | [Shift Akhir | Frontend 2, Admin Dashboard, Layout Sidebar Admin, Inventory CRUD UI, Schedule Monitoring | [YouTube/Drive](https://...) |
+
+
+---
+
+## 📖 Deskripsi Aplikasi
 **CamRent** adalah platform penyewaan kamera berbasis web yang dibangun dengan framework **Laravel 13** di sisi backend dan **Blade / Vue / React / HTML-JS** di sisi frontend. Sistem ini dilengkapi dengan otentikasi API berbasis **Sanctum**, integrasi payment gateway **Midtrans Snap**, notifikasi *in-app*, serta sistem *monitoring* jadwal dan inventaris untuk administrator.
 
 ---
 
-## 🛠️ Stack Teknologi
+# ⚙️ Penjelasan Teknis
+## 1. Teknologi (Tech Stack)
 
 - **Backend**: Laravel 13 (PHP 8.2+)
 - **Database**: MySQL / MariaDB
@@ -15,7 +37,7 @@
 
 ---
 
-## 🏗️ Arsitektur & Fitur Utama
+## 2.  Arsitektur & Fitur Utama
 
 ### 1. Fitur Penyewa (Customer)
 - **Autentikasi**: Registrasi, Login, Logout, & Manajemen Profil.
@@ -33,7 +55,7 @@
 
 ---
 
-## 🗄️ Skema Database & Relasi (5 Tabel Utama)
+## 3. Skema Data Singkat
 
 1. **`users`**: Menyimpan data pengguna (`role`: `admin` | `customer`).
    - Relasi: `hasMany(Rental)`, `hasMany(DatabaseNotification)`
@@ -48,7 +70,7 @@
 
 ---
 
-## ⚙️ Panduan Instalasi Lokal (Setup Environment)
+## 🚀 Panduan Instalasi Lokal
 
 ### Prasyarat
 - PHP >= 8.2
@@ -116,63 +138,3 @@ php artisan serve
 Aplikasi akan berjalan pada halaman `http://127.0.0.1:8000`.
 
 ---
-
-## 👥 Pembagian Tugas Tim (Jobdesk Mapping)
-
-| No | Nama | Peran | Area Kerja Utama |
-| --- | --- | --- | --- |
-| 1 | **Andyka** | Backend 1 | Core, Auth (Sanctum), CRUD Kamera, File Upload, In-App Notification |
-| 2 | **Abbas** | Backend 2 | Booking Logic, Midtrans Integration (Snap & Webhook IPN), Admin Schedule |
-| 3 | **Arifin** | Frontend 1 | Customer Portal, Auth UI, Catalog UI, Booking Form & Midtrans Pop-up |
-| 4 | **Huri** | Frontend 2 | Admin Dashboard, Layout Sidebar Admin, Inventory CRUD UI, Schedule Monitoring |
-
-> ⚠️ **Aturan Kerja Berkas Bersama (`routes/api.php`, `DatabaseSeeder.php`, `.env`)**:
-> Harap selalu berkoordinasi dengan tim sebelum melakukan *commit* atau *merge* pada berkas bersama untuk menghindari *conflict*.
-
----
-
-## 🔐 Ringkasan RESTful API Endpoints
-
-| Method | Endpoint | Deskripsi | Akses |
-| --- | --- | --- | --- |
-| `POST` | `/api/auth/register` | Registrasi akun baru | Public |
-| `POST` | `/api/auth/login` | Login & generate Bearer Token | Public |
-| `GET` | `/api/cameras` | List katalog kamera (Filter/Search) | Public |
-| `GET` | `/api/cameras/{id}` | Detail unit kamera | Public |
-| `POST` | `/api/rentals` | Buat pesanan booking baru | Customer |
-| `POST` | `/api/payments/snap-token` | Generate Snap Token Midtrans | Customer |
-| `POST` | `/api/payments/midtrans-notification` | Webhook IPN Callback Midtrans | Public (Midtrans) |
-| `POST` | `/api/cameras` | Tambah unit kamera baru | Admin |
-| `PATCH` | `/api/rentals/{id}/status` | Update status rental (Pick Up / Return) | Admin |
-| `GET` | `/api/admin/rentals/schedule` | Rekap tabel/jadwal sewa | Admin |
-
----
-
-## 🎨 Skema Warna Utama (Design System)
-
-* **Header / Navigation / Footer**: Deep Navy (`#1E293B`)
-* **Active Navigation / Hover**: Darker Navy (`#0F172A`)
-* **Background Utama**: Clean White (`#FFFFFF`)
-* **Card & Surface Background**: Light Slate (`#F8FAFC`)
-* **Tombol / Akses Utama**: Royal Blue (`#2563EB`)
-* **Status Success (Paid / Available)**: Emerald Green (`#10B981`)
-* **Status Warning (Pending / Rented)**: Amber Yellow (`#F59E0B`)
-* **Status Danger (Cancelled / Overdue)**: Rose Red (`#EF4444`)
-
----
-
-## 📄 Lisensi
-
-Proyek ini dikembangkan untuk kebutuhan pembelajaran dan portofolio tim **CamRent** © 2026. All Rights Reserved.
-
-```
-
----
-
-<ElicitationsGroup message="Bagaimana Anda ingin melanjutkannya?">
-  <Elicitation label="Buat skema DB Seeder lengkap (DatabaseSeeder.php)" query="Tolong buatkan kode PHP lengkap untuk database/seeders/DatabaseSeeder.php, UserSeeder.php, dan CameraSeeder.php sesuai spesifikasi CamRent."/>
-  <Elicitation label="Buat implementasi controller backend (AuthController & CameraController)" query="Tolong buatkan implementasi kode Laravel controller lengkap untuk AuthController.php dan CameraController.php milik Backend 1."/>
-  <Elicitation label="Buat alur penanganan Race Condition di RentalController" query="Tolong buatkan kode lengkap untuk RentalController.php yang menangani booking dengan lockForUpdate dan integrasi Midtrans Snap."/>
-</ElicitationsGroup>
-
-```
