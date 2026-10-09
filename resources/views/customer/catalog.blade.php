@@ -32,6 +32,12 @@
             Memuat daftar kamera...
         </div>
     </div>
+
+    <!-- ⬇️ PAGINATION CONTAINER -->
+    <div id="paginationContainer" class="mt-10 flex flex-col sm:flex-row justify-between items-center gap-4 hidden">
+        <span id="paginationInfo" class="text-sm text-slate-500"></span>
+        <div id="paginationButtons" class="flex gap-2"></div>
+    </div>
 </div>
 @endsection
 
@@ -41,8 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const camerasGrid = document.getElementById('camerasGrid');
     const searchInput = document.getElementById('searchInput');
     const filterButtons = document.querySelectorAll('.filter-btn');
+    const paginationContainer = document.getElementById('paginationContainer');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationButtons = document.getElementById('paginationButtons');
 
-    let allCameras = [];
+    let currentPage = 1;
     let activeCategory = 'all';
     let activeSearch = '';
 
@@ -50,12 +59,20 @@ document.addEventListener('DOMContentLoaded', () => {
         style: 'currency', currency: 'IDR', minimumFractionDigits: 0
     }).format(angka || 0);
 
-    // === RENDER ===
+    // Keyword filter kategori (client-side)
+    const CATEGORY_KEYWORDS = {
+        'mirrorless': ['mirrorless', 'sony', 'fujifilm', 'lumix', 'panasonic', 'olympus', 'nikon z', 'canon eos r'],
+        'dslr':       ['dslr', 'canon eos', 'nikon d'],
+        'lensa':      ['lens', 'lensa', 'tamron', 'sigma'],
+        'actioncam':  ['action', 'gopro', 'dji', 'insta360', 'osmo'],
+    };
+
+    // === RENDER CARD ===
     const renderCameras = (cameras) => {
         camerasGrid.innerHTML = '';
 
         if (!Array.isArray(cameras) || cameras.length === 0) {
-            camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400">Belum ada unit kamera yang tersedia saat ini.</div>';
+            camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400">Tidak ada kamera yang cocok dengan filter.</div>';
             return;
         }
 
@@ -94,97 +111,132 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // === APPLY FILTER (SEARCH + CATEGORY) ===
-    const applyFilters = () => {
-        let filtered = [...allCameras];
-
-        // Filter kategori berdasarkan brand atau nama
-        if (activeCategory !== 'all') {
-            const cat = activeCategory.toLowerCase();
-            filtered = filtered.filter(cam => {
-                const brand = (cam.brand || '').toLowerCase();
-                const name  = (cam.name || '').toLowerCase();
-                // Cocokkan berdasarkan brand ATAU nama yang mengandung kata kategori
-                return brand.includes(cat)
-                    || name.includes(cat)
-                    || (cat === 'lensa' && name.includes('lens'))
-                    || (cat === 'actioncam' && (name.includes('action') || brand.includes('dji') || brand.includes('gopro')));
-            });
+    // === RENDER PAGINATION ===
+    const renderPagination = (meta) => {
+        if (!meta || meta.last_page <= 1) {
+            paginationContainer.classList.add('hidden');
+            return;
         }
 
-        // Filter search
-        if (activeSearch.length > 0) {
-            filtered = filtered.filter(cam => {
-                const name  = (cam.name || '').toLowerCase();
-                const brand = (cam.brand || '').toLowerCase();
-                return name.includes(activeSearch) || brand.includes(activeSearch);
-            });
-        }
+        paginationContainer.classList.remove('hidden');
 
-        renderCameras(filtered);
+        const from = (meta.current_page - 1) * meta.per_page + 1;
+        const to = Math.min(meta.current_page * meta.per_page, meta.total);
+        paginationInfo.textContent = `Menampilkan ${from}–${to} dari ${meta.total} kamera`;
+
+        const prevDisabled = meta.current_page === 1;
+        const nextDisabled = meta.current_page === meta.last_page;
+
+        paginationButtons.innerHTML = `
+            <button ${prevDisabled ? 'disabled' : ''}
+                    onclick="goToPage(${meta.current_page - 1})"
+                    class="px-4 py-2 text-sm font-semibold rounded-lg border transition
+                           ${prevDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                ← Prev
+            </button>
+            <span class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#2563EB] text-white">
+                ${meta.current_page} / ${meta.last_page}
+            </span>
+            <button ${nextDisabled ? 'disabled' : ''}
+                    onclick="goToPage(${meta.current_page + 1})"
+                    class="px-4 py-2 text-sm font-semibold rounded-lg border transition
+                           ${nextDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+                Next →
+            </button>
+        `;
     };
 
-    // === SEARCH HANDLER ===
+    // === LOAD DATA ===
+    const loadCameras = (page = 1) => {
+        currentPage = page;
+
+        const params = new URLSearchParams({ page: page });
+        if (activeSearch) params.append('search', activeSearch);
+
+        camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400">Memuat katalog...</div>';
+
+        fetch(`/api/cameras?${params.toString()}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(async res => {
+            const text = await res.text();
+            let json;
+            try { json = JSON.parse(text); }
+            catch (e) {
+                console.error('Response bukan JSON:', text.substring(0, 300));
+                throw new Error(`HTTP ${res.status}: Response bukan JSON`);
+            }
+            if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+            return json;
+        })
+        .then(response => {
+            // Normalisasi array
+            let cameras = [];
+            if (Array.isArray(response)) cameras = response;
+            else if (Array.isArray(response.data)) cameras = response.data;
+            else if (Array.isArray(response.data?.data)) cameras = response.data.data;
+            else throw new Error("Respon server bukan array");
+
+            // Filter kategori client-side (sementara, backend belum punya field category)
+            if (activeCategory !== 'all') {
+                const keywords = CATEGORY_KEYWORDS[activeCategory] || [activeCategory];
+                cameras = cameras.filter(cam => {
+                    const text = `${cam.name || ''} ${cam.brand || ''}`.toLowerCase();
+                    return keywords.some(kw => text.includes(kw));
+                });
+            }
+
+            renderCameras(cameras);
+            renderPagination(response.meta);
+        })
+        .catch(err => {
+            console.error("Fetch Katalog Error:", err);
+            camerasGrid.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <p class="text-rose-500 font-semibold mb-1">Gagal memuat data dari server.</p>
+                    <p class="text-xs text-slate-400 font-mono">Penyebab: ${err.message}</p>
+                </div>
+            `;
+            paginationContainer.classList.add('hidden');
+        });
+    };
+
+    // === NAVIGASI HALAMAN ===
+    window.goToPage = (page) => {
+        if (page < 1) return;
+        loadCameras(page);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // === SEARCH (debounce) ===
+    let searchTimeout;
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            activeSearch = e.target.value.toLowerCase().trim();
-            applyFilters();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                activeSearch = e.target.value.toLowerCase().trim();
+                loadCameras(1);
+            }, 400);
         });
     }
 
-    // === FILTER BUTTON HANDLER ===
+    // === FILTER BUTTON ===
     filterButtons.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Reset style semua tombol
             filterButtons.forEach(b => {
                 b.classList.remove('bg-[#1E293B]', 'text-white');
                 b.classList.add('bg-blue-100', 'text-[#2563EB]', 'hover:bg-blue-200');
             });
-
-            // Aktifkan tombol yang diklik
             btn.classList.remove('bg-blue-100', 'text-[#2563EB]', 'hover:bg-blue-200');
             btn.classList.add('bg-[#1E293B]', 'text-white');
 
             activeCategory = btn.dataset.cat || 'all';
-            applyFilters();
+            loadCameras(1);
         });
     });
 
-    // === FETCH DATA ===
-    fetch('/api/cameras', {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then(async res => {
-        const text = await res.text();
-        let json;
-        try { json = JSON.parse(text); }
-        catch (e) {
-            console.error('Response bukan JSON:', text.substring(0, 300));
-            throw new Error(`HTTP ${res.status}: Response bukan JSON`);
-        }
-        if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
-        return json;
-    })
-    .then(response => {
-        // Normalisasi array
-        let cameras = [];
-        if (Array.isArray(response)) cameras = response;
-        else if (Array.isArray(response.data)) cameras = response.data;
-        else if (Array.isArray(response.data?.data)) cameras = response.data.data;
-        else throw new Error("Respon server bukan array");
-
-        allCameras = cameras;
-        applyFilters();   // pakai applyFilters, bukan render langsung
-    })
-    .catch(err => {
-        console.error("Fetch Katalog Error:", err);
-        camerasGrid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <p class="text-rose-500 font-semibold mb-1">Gagal memuat data dari server.</p>
-                <p class="text-xs text-slate-400 font-mono">Penyebab: ${err.message}</p>
-            </div>
-        `;
-    });
+    // === INITIAL LOAD ===
+    loadCameras(1);
 });
 </script>
 @endpush
