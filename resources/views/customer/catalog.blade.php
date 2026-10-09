@@ -37,79 +37,97 @@
 
 @stack('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const camerasGrid = document.getElementById('camerasGrid');
-        let allCameras = []; // Menyimpan semua data untuk filter lokal
+document.addEventListener('DOMContentLoaded', () => {
+    const camerasGrid = document.getElementById('camerasGrid');
+    const searchInput = document.getElementById('searchInput');
+    let allCameras = [];
 
-        // Fungsi Format Rupiah
-        const formatRupiah = (angka) => {
-            return new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            }).format(angka);
-        };
+    const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0
+    }).format(angka || 0);
 
-        // Fungsi Render Card Kamera
-        const renderCameras = (cameras) => {
-            camerasGrid.innerHTML = '';
+    const renderCameras = (cameras) => {
+        camerasGrid.innerHTML = '';
 
-            if (cameras.length === 0) {
-                camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Kamera tidak ditemukan.</div>';
-                return;
-            }
+        if (!Array.isArray(cameras) || cameras.length === 0) {
+            camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400">Belum ada unit kamera yang tersedia saat ini.</div>';
+            return;
+        }
 
-            cameras.forEach(cam => {
-                const stockBadge = cam.stock > 0 ?
-                    '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-semibold">Tersedia</span>' :
-                    '<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded font-semibold">Habis</span>';
+        cameras.forEach(cam => {
+            const isAvailable = (cam.stock > 0) && (cam.status === 'available');
+            const stockBadge = isAvailable ?
+                '<span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold">Tersedia</span>' :
+                '<span class="bg-rose-100 text-rose-800 text-xs px-2.5 py-1 rounded-full font-semibold">Tidak Tersedia</span>';
 
-                const cardHtml = `
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-                    <div class="h-48 bg-gray-200 flex items-center justify-center overflow-hidden relative">
-                        <!-- Menampilkan gambar, asumsi backend mengembalikan full URL atau asset path -->
-                        ${cam.image ? `<img src="${cam.image}" alt="${cam.name}" class="w-full h-full object-cover">` : `<span class="text-gray-400">Display ${cam.name}</span>`}
+            const cardHtml = `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition">
+                    <div class="h-48 bg-slate-100 flex items-center justify-center overflow-hidden relative">
+                        ${cam.image_url 
+                            ? `<img src="${cam.image_url}" alt="${cam.name}" class="w-full h-full object-cover">` 
+                            : `<span class="text-xs text-slate-400">Foto Display ${cam.name}</span>`}
                         <div class="absolute top-2 right-2">${stockBadge}</div>
                     </div>
                     <div class="p-5">
-                        <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded mb-2 uppercase tracking-wide">${cam.brand}</span>
-                        <h3 class="text-lg font-bold text-gray-900 mb-1 leading-tight">${cam.name}</h3>
-                        <p class="text-sm text-gray-500 mb-4 line-clamp-2">${cam.description || 'Tidak ada deskripsi'}</p>
+                        <span class="inline-block px-2 py-1 bg-blue-50 text-[#2563EB] text-xs font-bold rounded mb-2 uppercase tracking-wide">${cam.brand}</span>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1 leading-tight">${cam.name}</h3>
+                        <p class="text-xs text-slate-500 mb-4 line-clamp-2">${cam.description || 'Tidak ada deskripsi'}</p>
                         
-                        <div class="flex items-center justify-between mt-auto">
+                        <div class="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
                             <div>
-                                <span class="text-[#2563EB] font-bold text-lg">${formatRupiah(cam.daily_rate)}</span><span class="text-gray-500 text-sm">/hr</span>
+                                <span class="text-[#2563EB] font-extrabold text-lg">${formatRupiah(cam.daily_rate)}</span>
+                                <span class="text-slate-400 text-xs">/hari</span>
                             </div>
-                            <a href="/catalog/${cam.id}" class="bg-green-100 text-green-700 hover:bg-green-200 font-semibold px-4 py-2 rounded-lg text-sm transition">
-                                DETAIL
+                            <a href="/catalog/${cam.id}" class="bg-[#2563EB] hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition">
+                                Detail Unit
                             </a>
                         </div>
                     </div>
                 </div>
             `;
-                camerasGrid.innerHTML += cardHtml;
-            });
-        };
+            camerasGrid.innerHTML += cardHtml;
+        });
+    };
 
-        // Ambil Data dari API Backend
-        fetch('/api/cameras', {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                // Asumsi backend mengembalikan data dalam format: { data: [...] } (karena menggunakan Pagination/Resource API)
-                allCameras = data.data || data;
-                renderCameras(allCameras);
-            })
-            .catch(err => {
-                console.error(err);
-                camerasGrid.innerHTML = '<div class="col-span-full text-center py-12 text-red-500">Gagal memuat data dari server.</div>';
-            });
+    // Ambil data dari API
+    fetch('/api/cameras', {
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(async res => {
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || `HTTP Status ${res.status}`);
+        }
+        return res.json();
+    })
+    .then(response => {
+        // Mendukung penanganan Resource Collection (response.data) maupun Array langsung
+        const cameras = response.data || response;
 
-        // Implementasi Pencarian Sederhana (Client-side)
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        if (!Array.isArray(cameras)) {
+            throw new Error("Respon server bukan berbentuk array");
+        }
+
+        allCameras = cameras;
+        renderCameras(allCameras);
+    })
+    .catch(err => {
+        console.error("Fetch Katalog Error:", err);
+        camerasGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <p class="text-rose-500 font-semibold mb-1">Gagal memuat data dari server.</p>
+                <p class="text-xs text-slate-400 font-mono">Penyebab: ${err.message}</p>
+            </div>
+        `;
+    });
+
+    // Fitur Pencarian Client-Side
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
             const keyword = e.target.value.toLowerCase();
             const filtered = allCameras.filter(cam =>
                 cam.name.toLowerCase().includes(keyword) ||
@@ -117,5 +135,6 @@
             );
             renderCameras(filtered);
         });
-    });
-</script>
+    }
+});
+</script

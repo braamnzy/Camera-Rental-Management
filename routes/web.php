@@ -2,35 +2,33 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Halaman Katalog Utama
+/*
+|--------------------------------------------------------------------------
+| Web Routes (Blade Views Engine)
+|--------------------------------------------------------------------------
+*/
+
+// Redirect awal ke Katalog
 Route::get('/', function () {
     return redirect('/catalog');
 });
 
-Route::get('/catalog', function () {
-    return view('customer.catalog');
-});
+// Auth Views
+Route::view('/login', 'auth.login')->name('login');
+Route::view('/register', 'auth.register')->name('register');
 
-// Halaman Detail Kamera
-Route::get('/catalog/{id}', function () {
-    return view('customer.detail');
-});
+// Customer Portal Views
+Route::view('/catalog', 'customer.catalog')->name('catalog.index');
+Route::view('/catalog/{id}', 'customer.detail')->name('catalog.show');
+Route::view('/booking/{id}', 'customer.booking-form')->name('booking.form');
+Route::view('/my-rentals', 'customer.my-rentals')->name('my-rentals');
 
-// Halaman Login & Register
-Route::get('/login', function () {
-    return view('auth.login');
-});
-
-Route::get('/register', function () {
-    return view('auth.register'); // Jika kamu membuat form register
-});
-
-// Halaman Booking Midtrans
-Route::get('/booking/{id}', function () {
-    return view('customer.booking-form');
-});
-
-// Halaman Riwayat Sewa
-Route::get('/my-rentals', function () {
-    return view('customer.my-rentals'); // Tugasmu selanjutnya
+// Admin Portal Views
+Route::prefix('admin')->group(function () {
+    Route::view('/dashboard', 'admin.dashboard')->name('admin.dashboard');
+    Route::view('/cameras', 'admin.cameras.index')->name('admin.cameras.index');
+    Route::view('/cameras/create', 'admin.cameras.create')->name('admin.cameras.create');
+    Route::view('/cameras/{id}/edit', 'admin.cameras.edit')->name('admin.cameras.edit');
+    Route::view('/rentals', 'admin.rentals.index')->name('admin.rentals.index');
+    Route::view('/schedule', 'admin.rentals.schedule')->name('admin.schedule');
 });

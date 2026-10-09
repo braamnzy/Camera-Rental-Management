@@ -66,13 +66,19 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    // Simpan token yang didapat dari backend
-                    localStorage.setItem('token', data.token);
+
+                    const token = data.access_token || data.token;
+                    if (token) {
+                        localStorage.setItem('token', token);
+                    }
 
                     // Cek role, jika admin lempar ke dashboard, jika customer lempar ke katalog
-                    if (data.user.role === 'admin') {
+                    if (data.user && data.user.role === 'admin') {
                         window.location.href = '/admin/dashboard';
+                    } else if (data.user && data.user.role === 'customer') {
+                        window.location.href = '/catalog';
                     } else {
+                        // Jika role tidak dikenali, lempar ke katalog sebagai default
                         window.location.href = '/catalog';
                     }
                 } else {

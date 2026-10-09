@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CamRent - Persewaan Kamera</title>
-    <!-- Tailwind CSS (Menggunakan CDN untuk kemudahan, jika sudah setup NPM, gunakan @vite) -->
+    <title>@yield('title', 'FrameFlow')</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
+    <!-- Tailwind CSS (Menggunakan CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Midtrans Snap.js (Sandbox Mode) -->
     <script src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ env('MIDTRANS_CLIENT_KEY') }}"></script>
     <style>
-        /* CSS tambahan sederhana jika diperlukan */
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -25,7 +25,12 @@
             <div class="flex items-center justify-between h-16">
                 <!-- Logo -->
                 <div class="flex-shrink-0">
-                    <a href="/catalog" class="text-xl font-bold tracking-wider">CamRent</a>
+                    <a href="/catalog" class="flex items-center gap-2">
+                        <img src="{{ asset('images/logoW_40.png') }}"
+                            alt="CamRent"
+                            class="h-9 w-auto">
+                        <span class="text-xl font-bold tracking-wider">FrameFlow</span>
+                    </a>
                 </div>
 
                 <!-- Menu Navigasi -->
@@ -61,7 +66,7 @@
     <!-- Footer -->
     <footer class="bg-[#1E293B] text-white py-6 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p class="text-sm text-gray-400">© 2026 CamRent. All Rights Reserved.</p>
+            <p class="text-sm text-gray-400">© 2026 FrameFlow. All Rights Reserved.</p>
         </div>
     </footer>
 

@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<!-- Modal untuk Nota Digital (Hidden by default) -->
+<!-- Modal Nota Digital -->
 <div id="notaModal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 overflow-y-auto flex items-center justify-center px-4">
     <div class="bg-white max-w-md w-full rounded-xl shadow-2xl p-6 relative">
         <!-- Tombol Tutup -->
@@ -36,12 +36,26 @@
                 <p class="text-xs text-gray-500">Jl. Kamera Utama No. 42, Purwokerto</p>
             </div>
 
-            <div class="space-y-2 text-sm text-gray-700 mb-6">
+            <div class="space-y-2 text-sm text-gray-700 mb-4">
                 <p><strong>Order ID:</strong> <span id="notaOrderId"></span></p>
-                <p><strong>Penyewa:</strong> <span id="notaUserName"></span> (<span id="notaUserPhone"></span>)</p>
+                <p><strong>Penyewa:</strong> <span id="notaUserName">Loading...</span> (<span id="notaUserPhone">-</span>)</p>
                 <p><strong>Unit Equipment:</strong> <span id="notaCameraName"></span></p>
                 <p><strong>Periode Sewa:</strong> <span id="notaStartDate"></span> s/d <span id="notaEndDate"></span></p>
             </div>
+
+            <!-- ⬇️ INFO PENGAMBILAN BARU ⬇️ -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p class="text-[10px] font-bold text-blue-900 uppercase mb-2">📦 Info Pengambilan</p>
+                <div class="space-y-1 text-xs text-gray-700">
+                    <p><strong>Metode:</strong> <span id="notaPickupMethod">-</span></p>
+                    <p><strong>Tanggal:</strong> <span id="notaPickupDate">-</span></p>
+                    <p><strong>Jam:</strong> <span id="notaPickupTime">-</span></p>
+                    <p id="notaPickupNotesRow" class="hidden">
+                        <strong>Catatan:</strong> <span id="notaPickupNotes" class="italic">-</span>
+                    </p>
+                </div>
+            </div>
+            <!-- ⬆️ END INFO PENGAMBILAN ⬆️ -->
 
             <div class="bg-gray-50 p-4 rounded text-center">
                 <p class="text-xs text-gray-500 mb-1">TOTAL LUNAS (MIDTRANS SNAP):</p>
@@ -63,7 +77,7 @@
 </div>
 @endsection
 
-@stack('scripts')
+@push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const token = localStorage.getItem('token');
@@ -77,189 +91,195 @@
         let allRentals = [];
 
         const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-        }).format(angka);
+            style: 'currency', currency: 'IDR', minimumFractionDigits: 0
+        }).format(angka || 0);
 
-        // Pemetaan warna dan teks badge berdasarkan status backend
         const statusConfig = {
-            'pending_payment': {
-                label: 'MENUNGGU BAYAR',
-                color: 'bg-amber-100 text-amber-800'
-            },
-            'paid': {
-                label: 'LUNAS / SIAP DIAMBIL',
-                color: 'bg-emerald-100 text-emerald-800'
-            },
-            'picked_up': {
-                label: 'SEDANG DISEWA',
-                color: 'bg-blue-100 text-blue-800'
-            },
-            'returned': {
-                label: 'SELESAI',
-                color: 'bg-gray-100 text-gray-800'
-            },
-            'cancelled': {
-                label: 'DIBATALKAN',
-                color: 'bg-red-100 text-red-800'
-            }
+            'pending_payment': { label: 'MENUNGGU BAYAR', color: 'bg-amber-100 text-amber-800' },
+            'paid':            { label: 'LUNAS / SIAP DIAMBIL', color: 'bg-emerald-100 text-emerald-800' },
+            'picked_up':       { label: 'SEDANG DISEWA', color: 'bg-blue-100 text-blue-800' },
+            'returned':        { label: 'SELESAI', color: 'bg-gray-100 text-gray-800' },
+            'cancelled':       { label: 'DIBATALKAN', color: 'bg-red-100 text-red-800' },
         };
 
-        // Fungsi Render Daftar Rental
         const renderRentals = (rentals) => {
             container.innerHTML = '';
 
-            if (rentals.length === 0) {
+            if (!Array.isArray(rentals) || rentals.length === 0) {
                 container.innerHTML = '<div class="text-center py-12 text-gray-500 bg-white rounded-xl shadow-sm border border-gray-100">Belum ada transaksi di kategori ini.</div>';
                 return;
             }
 
             rentals.forEach(rental => {
-                const config = statusConfig[rental.status] || {
-                    label: rental.status,
-                    color: 'bg-gray-100 text-gray-800'
-                };
-                const camera = rental.camera || {
-                    name: 'Kamera Dihapus'
-                }; // Safeguard jika relasi kosong
+                const config = statusConfig[rental.status] || { label: rental.status, color: 'bg-gray-100 text-gray-800' };
+                const camera = rental.camera || { name: 'Kamera Dihapus' };
 
-                // Atur Tombol Aksi berdasarkan status
                 let actionHtml = '';
                 if (rental.status === 'pending_payment') {
                     actionHtml = `<a href="/booking/${rental.id}" class="inline-block bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-semibold px-4 py-2 rounded transition">Bayar Sekarang</a>`;
-                } else if (rental.status === 'paid' || rental.status === 'picked_up' || rental.status === 'returned') {
-                    // Konversi objek JSON ke string agar aman disisipkan ke HTML
+                } else if (['paid', 'picked_up', 'returned'].includes(rental.status)) {
                     const rentalDataStr = encodeURIComponent(JSON.stringify(rental));
-                    actionHtml = `<button onclick="showNota('${rentalDataStr}')" class="inline-block border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 text-sm font-semibold px-4 py-2 rounded transition">Lihat Nota Digital</button>`;
+                    actionHtml = `<button type="button" data-nota="${rentalDataStr}" class="btn-nota inline-block border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 text-sm font-semibold px-4 py-2 rounded transition">Lihat Nota Digital</button>`;
                 }
 
+                // Format jam (10:00:00 → 10:00)
+                const pickupTime = rental.pickup_time ? rental.pickup_time.substring(0, 5) : '-';
+                const pickupDate = rental.pickup_date || '-';
+
                 const cardHtml = `
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div class="flex items-start gap-4">
-                        <!-- Indikator Warna Status di Kiri -->
-                        <div class="hidden md:block w-2 h-full min-h-[4rem] rounded-full ${config.color.split(' ')[0]}"></div>
-                        
-                        <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="font-bold text-gray-900">#ORD-${rental.id}</span>
-                                <span class="text-xs px-2 py-1 rounded font-semibold ${config.color}">${config.label}</span>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-start gap-4">
+                            <div class="hidden md:block w-2 h-full min-h-[4rem] rounded-full ${config.color.split(' ')[0]}"></div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-bold text-gray-900">#ORD-${rental.id}</span>
+                                    <span class="text-xs px-2 py-1 rounded font-semibold ${config.color}">${config.label}</span>
+                                </div>
+                                <h3 class="text-lg font-bold text-gray-800">${camera.name}</h3>
+                                <p class="text-sm text-gray-500 mb-1">Tanggal Sewa: ${rental.start_date} s/d ${rental.end_date} (${rental.total_days} Hari)</p>
+                                <p class="text-xs text-slate-500 mb-2">
+                                    📦 Ambil: <strong>${pickupDate} ${pickupTime}</strong>
+                                </p>
+                                <p class="text-[#2563EB] font-bold">${formatRupiah(rental.total_price)}</p>
                             </div>
-                            <h3 class="text-lg font-bold text-gray-800">${camera.name}</h3>
-                            <p class="text-sm text-gray-500 mb-2">Tanggal Sewa: ${rental.start_date} s/d ${rental.end_date} (${rental.total_days} Hari)</p>
-                            <p class="text-[#2563EB] font-bold">${formatRupiah(rental.total_price)}</p>
                         </div>
-                    </div>
-                    
-                    <div class="flex-shrink-0 flex flex-col items-end">
-                        ${actionHtml}
-                    </div>
-                </div>
-            `;
-                container.innerHTML += cardHtml;
+                        <div class="flex-shrink-0 flex flex-col items-end">${actionHtml}</div>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            // Event delegation untuk tombol nota
+            container.querySelectorAll('.btn-nota').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const data = JSON.parse(decodeURIComponent(btn.dataset.nota));
+                    showNota(data);
+                });
             });
         };
 
-        // Ambil Data dari API
+        // === FETCH RENTALS ===
         fetch('/api/rentals', {
-                headers: {
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                allRentals = data.data || data;
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(async res => {
+            const text = await res.text();
+            let json;
+            try { json = JSON.parse(text); }
+            catch (e) {
+                console.error('Response bukan JSON:', text.substring(0, 300));
+                throw new Error(`HTTP ${res.status}: Response bukan JSON`);
+            }
+            if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+            return json;
+        })
+        .then(response => {
+            let rentals = [];
+            if (Array.isArray(response)) rentals = response;
+            else if (Array.isArray(response.data)) rentals = response.data;
+            else if (Array.isArray(response.data?.data)) rentals = response.data.data;
 
-                // Urutkan dari yang terbaru (opsional, asumsikan backend sudah mengurutkan)
-                allRentals.sort((a, b) => b.id - a.id);
+            allRentals = rentals.sort((a, b) => b.id - a.id);
+            renderRentals(allRentals);
+        })
+        .catch(err => {
+            console.error(err);
+            container.innerHTML = `<div class="text-center py-12 text-red-500 font-semibold">Gagal memuat riwayat transaksi: ${err.message}</div>`;
+        });
 
-                renderRentals(allRentals);
-            })
-            .catch(err => {
-                console.error(err);
-                container.innerHTML = '<div class="text-center py-12 text-red-500">Gagal memuat riwayat transaksi dari server.</div>';
-            });
-
-        // Logika Filter Tab
+        // === FILTER TABS ===
         tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                // Reset style semua tab
+            tab.addEventListener('click', () => {
                 tabs.forEach(t => {
                     t.classList.remove('border-[#2563EB]', 'text-[#2563EB]');
                     t.classList.add('border-transparent', 'text-gray-500');
                 });
-                // Aktifkan tab yang diklik
-                const btn = e.target;
-                btn.classList.remove('border-transparent', 'text-gray-500');
-                btn.classList.add('border-[#2563EB]', 'text-[#2563EB]');
+                tab.classList.remove('border-transparent', 'text-gray-500');
+                tab.classList.add('border-[#2563EB]', 'text-[#2563EB]');
 
-                const status = btn.getAttribute('data-status');
-                if (status === 'all') {
-                    renderRentals(allRentals);
-                } else {
-                    const filtered = allRentals.filter(r => r.status === status);
-                    renderRentals(filtered);
-                }
+                const status = tab.getAttribute('data-status');
+                if (status === 'all') renderRentals(allRentals);
+                else renderRentals(allRentals.filter(r => r.status === status));
             });
         });
-    });
 
-    // Fungsi Global untuk Menampilkan Modal Nota
-    window.showNota = function(rentalDataStr) {
-        const rental = JSON.parse(decodeURIComponent(rentalDataStr));
-        const formatRupiah = (angka) => new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0
-        }).format(angka);
+        // === FUNGSI MODAL NOTA ===
+        const notaModal = document.getElementById('notaModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const printBtn = document.getElementById('printBtn');
 
-        // Ambil data user dari localStorage token atau dari objek rental (jika backend memuat relasi user)
-        // Untuk nota sederhana, kita panggil API me() lagi, atau asumsikan nama diambil dari API.
-        const token = localStorage.getItem('token');
+        function showNota(rental) {
+            // Data dasar
+            document.getElementById('notaOrderId').textContent = `ORD-${rental.id}`;
+            document.getElementById('notaCameraName').textContent = rental.camera ? rental.camera.name : '-';
+            document.getElementById('notaStartDate').textContent = rental.start_date;
+            document.getElementById('notaEndDate').textContent = rental.end_date;
+            document.getElementById('notaTotal').textContent = formatRupiah(rental.total_price);
 
-        document.getElementById('notaOrderId').textContent = `ORD-${rental.id}`;
-        document.getElementById('notaCameraName').textContent = rental.camera ? rental.camera.name : '-';
-        document.getElementById('notaStartDate').textContent = rental.start_date;
-        document.getElementById('notaEndDate').textContent = rental.end_date;
-        document.getElementById('notaTotal').textContent = formatRupiah(rental.total_price);
+            // ⬇️ DATA PENGAMBILAN BARU
+            const pickupTime = rental.pickup_time ? rental.pickup_time.substring(0, 5) : '-';
+            document.getElementById('notaPickupMethod').textContent =
+                rental.pickup_method === 'delivery' ? 'Dikirim' : 'Ambil di Toko';
+            document.getElementById('notaPickupDate').textContent = rental.pickup_date || '-';
+            document.getElementById('notaPickupTime').textContent = pickupTime;
 
-        // Tarik nama penyewa dari endpoint me
-        fetch('/api/auth/me', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.user) {
-                    document.getElementById('notaUserName').textContent = data.user.name;
-                    document.getElementById('notaUserPhone').textContent = data.user.phone || '-';
-                }
+            const notesRow = document.getElementById('notaPickupNotesRow');
+            if (rental.pickup_notes) {
+                document.getElementById('notaPickupNotes').textContent = rental.pickup_notes;
+                notesRow.classList.remove('hidden');
+            } else {
+                notesRow.classList.add('hidden');
+            }
+            // ⬆️ END DATA PENGAMBILAN
+
+            // Data user
+            if (rental.user) {
+                document.getElementById('notaUserName').textContent = rental.user.name;
+                document.getElementById('notaUserPhone').textContent = rental.user.phone || '-';
+            } else {
+                fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const u = data.user || data.data || {};
+                    document.getElementById('notaUserName').textContent = u.name || '-';
+                    document.getElementById('notaUserPhone').textContent = u.phone || '-';
+                })
+                .catch(() => {});
+            }
+
+            notaModal.classList.remove('hidden');
+        }
+
+        // Close modal
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', () => {
+                notaModal.classList.add('hidden');
             });
+        }
 
-        document.getElementById('notaModal').classList.remove('hidden');
-    };
+        notaModal.addEventListener('click', (e) => {
+            if (e.target === notaModal) notaModal.classList.add('hidden');
+        });
 
-    // Menutup Modal
-    document.getElementById('closeModalBtn').addEventListener('click', () => {
-        document.getElementById('notaModal').classList.add('hidden');
-    });
-
-    // Fungsi Cetak (Print HTML Div)
-    document.getElementById('printBtn').addEventListener('click', () => {
-        const printContent = document.getElementById('notaPrintArea').innerHTML;
-        const originalContent = document.body.innerHTML;
-
-        document.body.innerHTML = `
-        <div style="padding: 40px; font-family: sans-serif; max-width: 500px; margin: auto;">
-            ${printContent}
-        </div>
-    `;
-        window.print();
-        // Kembalikan ke UI awal setelah selesai nge-print
-        document.body.innerHTML = originalContent;
-        window.location.reload();
+        // Print
+        if (printBtn) {
+            printBtn.addEventListener('click', () => {
+                const printContent = document.getElementById('notaPrintArea').innerHTML;
+                const printWindow = window.open('', '', 'height=600,width=500');
+                printWindow.document.write('<html><head><title>Cetak Nota CamRent</title>');
+                printWindow.document.write('<script src="https://cdn.tailwindcss.com"><\/script>');
+                printWindow.document.write('</head><body class="p-6">');
+                printWindow.document.write(printContent);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+            });
+        }
     });
 </script>
+@endpush

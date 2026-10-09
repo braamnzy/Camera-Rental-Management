@@ -10,13 +10,36 @@ return new class extends Migration
     {
         Schema::create('rentals', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('camera_id')->constrained('cameras')->onDelete('cascade');
+
+            $table->foreignId('user_id')
+                  ->constrained('users')
+                  ->onDelete('cascade');
+            $table->foreignId('camera_id')
+                  ->constrained('cameras')
+                  ->onDelete('cascade');
+
+            // ── Periode Sewa ────────────────────────────────
             $table->date('start_date');
             $table->date('end_date');
+
+            // ── Sistem Pengambilan Barang (BARU) ───────────
+            $table->date('pickup_date')->nullable()
+                  ->comment('Tanggal customer ambil unit');
+            $table->time('pickup_time')->nullable()
+                  ->comment('Jam pengambilan (HH:MM)');
+            $table->enum('pickup_method', ['pickup', 'delivery'])
+                  ->default('pickup')
+                  ->comment('pickup = ambil di toko, delivery = dikirim');
+            $table->text('pickup_notes')->nullable()
+                  ->comment('Catatan tambahan dari customer');
+            // ────────────────────────────────────────────────
+
+            // ── Perhitungan Biaya ──────────────────────────
             $table->unsignedInteger('total_days');
-            $table->unsignedInteger('quantity')->default(1); // Mencegah race condition & melacak stok sewa
+            $table->unsignedInteger('quantity')->default(1);
             $table->decimal('total_price', 12, 2);
+
+            // ── Status ─────────────────────────────────────
             $table->enum('status', [
                 'pending_payment',
                 'paid',
@@ -25,10 +48,14 @@ return new class extends Migration
                 'cancelled',
                 'expired'
             ])->default('pending_payment');
+
             $table->timestamps();
 
-            // Indexing untuk mempercepat pengecekan jadwal & stok bentrok
-            $table->index(['camera_id', 'start_date', 'end_date', 'status']);
+            // Indexing untuk cek bentrok jadwal & stok
+            $table->index(
+                ['camera_id', 'start_date', 'end_date', 'status'],
+                'rentals_schedule_index'
+            );
         });
     }
 
