@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|---|
 | 1 | Andyka Zefanya Bramantyo | H1H024039 | A | D | Backend 1, Core, Auth (Sanctum), CRUD Kamera, File Upload, In-App Notification | [YouTube/Drive](https://...) |
 | 2 | Ibnu Abbas | H1H024038 | B | D |Backend 2, Booking Logic, Midtrans Integration (Snap & Webhook IPN), Admin Schedule | [YouTube/Drive](https://...) |
-| 3 | Arifin Budi Kusuma | H1H024040 | B | D | Frontend 1, Customer Portal, Auth UI, Catalog UI, Booking Form & Midtrans Pop-up | [YouTube/Drive](https://...) |
+| 3 | Arifin Budi Kusuma | H1H024040 | B | D | Frontend 1, Customer Portal, Auth UI, Catalog UI, Booking Form & Midtrans Pop-up | https://youtu.be/LNjeV3AroPw?si=Hium2nUxVn93M0wj |
 | 4 | Huriyatun Nur Anajmi | H1H024035 | D | D | Frontend 2, Admin Dashboard, Layout Sidebar Admin, Inventory CRUD UI, Schedule Monitoring | [YouTube/Drive](https://youtu.be/cnwV2LzWHf0?si=DCVnUDkcqO77wK1a) |
 
 
