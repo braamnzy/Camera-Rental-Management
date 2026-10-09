@@ -23,7 +23,7 @@
                 <!-- Logo Header -->
                 <div class="h-16 flex items-center px-6 border-b border-slate-700">
                     <a href="/admin/dashboard" class="flex items-center gap-2">
-                        <img src="{{ asset('images/logoW_40.png') }}"
+                        <img src="{{ asset('images/LogoW_40.png') }}"
                             alt="FrameFlow"
                             class="h-8 w-auto">
                         <span class="text-lg font-bold tracking-wide text-white">FrameFlow</span>

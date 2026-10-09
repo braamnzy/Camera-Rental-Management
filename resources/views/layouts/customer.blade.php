@@ -26,7 +26,7 @@
                 <!-- Logo -->
                 <div class="flex-shrink-0">
                     <a href="/catalog" class="flex items-center gap-2">
-                        <img src="{{ asset('images/logoW_40.png') }}"
+                        <img src="{{ asset('images/LogoW_40.png') }}"
                             alt="CamRent"
                             class="h-9 w-auto">
                         <span class="text-xl font-bold tracking-wider">FrameFlow</span>
